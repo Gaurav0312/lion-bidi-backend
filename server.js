@@ -15,7 +15,7 @@ const app = express();
 
 // CORS Configuration - Fixed (only one configuration)
 app.use(cors({
-  origin: 'http://localhost:3000',
+  origin: ['https://lion-bidi-frontend-ngzi.vercel.app', 'https://lionbidi.shop'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS','PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']

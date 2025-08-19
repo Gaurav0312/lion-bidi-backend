@@ -256,6 +256,7 @@ router.post('/test-email', async (req, res) => {
 // Check Email/Phone Availability
 // ========================
 router.post('/check-availability', async (req, res) => {
+  console.log("check-availability req.body:", req.body);
   try {
     const { email, phone } = req.body;
     
@@ -291,6 +292,7 @@ router.post('/check-availability', async (req, res) => {
 // Send Registration OTP
 // ========================
 router.post('/send-registration-otp', async (req, res) => {
+  console.log("send-registration-otp req.body:", req.body);
   try {
     const { email, name } = req.body;
     

@@ -5,7 +5,9 @@ const crypto = require("crypto");
 // Email configuration with enhanced error handling
 const createTransporter = () => {
   if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error("Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables.");
+    throw new Error(
+      "Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables."
+    );
   }
 
   const transporter = nodemailer.createTransport({
@@ -37,6 +39,34 @@ const createTransporter = () => {
 // Generate OTP with enhanced security
 const generateOTP = () => {
   return crypto.randomInt(100000, 999999).toString();
+};
+
+const sendOrderNotificationEmail = async (email, type, orderData) => {
+  try {
+    console.log(`Sending ${type} email to:`, email);
+
+    const transporter = createTransporter();
+    const template = getOrderEmailTemplate(type, orderData);
+
+    const mailOptions = {
+      from: `"Lion Bidi - Premium Quality" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: template.subject,
+      html: template.html,
+      headers: {
+        "X-Priority": "1",
+        "X-MSMail-Priority": "High",
+        Importance: "High",
+      },
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`${type} email sent successfully:`, result.messageId);
+    return result;
+  } catch (error) {
+    console.error(`Send ${type} email error:`, error);
+    throw new Error(`Failed to send ${type} email: ${error.message}`);
+  }
 };
 
 // Enhanced email templates with better mobile responsiveness
@@ -267,13 +297,245 @@ const getEmailTemplate = (otp, type = "verification") => {
   return templates[type] || templates.verification;
 };
 
+const getOrderEmailTemplate = (type, data) => {
+  const templates = {
+    admin_payment_verification: {
+      subject: `🔍 Payment Verification Required - Order ${data.orderNumber}`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Payment Verification Required - Lion Bidi</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            .header { background: linear-gradient(135deg, #ea580c, #dc2626, #ea580c); padding: 30px 20px; text-align: center; color: white; }
+            .content { padding: 30px; }
+            .alert { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .order-details { background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .items { margin: 15px 0; }
+            .item { padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🔍 Payment Verification Required</h1>
+              <p>Lion Bidi Admin Dashboard</p>
+            </div>
+            <div class="content">
+              <div class="alert">
+                <h3>⚠️ Action Required</h3>
+                <p>A new payment submission requires verification.</p>
+              </div>
+              
+              <div class="order-details">
+                <h3>Order Details</h3>
+                <p><strong>Order Number:</strong> ${data.orderNumber}</p>
+                <p><strong>Customer:</strong> ${data.customerName}</p>
+                <p><strong>Email:</strong> ${data.customerEmail}</p>
+                <p><strong>Amount:</strong> ₹${data.amount.toFixed(2)}</p>
+                <p><strong>Transaction ID:</strong> ${data.transactionId}</p>
+                <p><strong>Order Date:</strong> ${new Date(
+                  data.orderDate
+                ).toLocaleString()}</p>
+              </div>
+              
+              <div class="items">
+                <h3>Items Ordered</h3>
+                ${data.items
+                  .map(
+                    (item) => `
+                  <div class="item">
+                    <strong>${item.name}</strong> × ${item.quantity} = ₹${(
+                      item.price * item.quantity
+                    ).toFixed(2)}
+                  </div>
+                `
+                  )
+                  .join("")}
+              </div>
+            </div>
+            <div class="footer">
+              <p>© 2024 Lion Bidi - Admin Notification</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    },
+
+    order_confirmed: {
+      subject: `✅ Order Confirmed - ${data.orderNumber} | Lion Bidi`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Order Confirmed - Lion Bidi</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            .header { background: linear-gradient(135deg, #ea580c, #dc2626, #ea580c); padding: 30px 20px; text-align: center; color: white; }
+            .content { padding: 30px; }
+            .success { background: #d1fae5; border: 2px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+            .order-details { background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .items { margin: 15px 0; }
+            .item { padding: 10px 0; border-bottom: 1px solid #e5e7eb; }
+            .shipping-info { background: #fef2f2; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .track-button { background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 0; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>✅ Order Confirmed!</h1>
+              <p>Lion Bidi - Premium Quality</p>
+            </div>
+            <div class="content">
+              <div class="success">
+                <h2>🎉 Thank you, ${data.customerName}!</h2>
+                <p>Your order has been confirmed and is being processed.</p>
+              </div>
+              
+              <div class="order-details">
+                <h3>Order Summary</h3>
+                <p><strong>Order Number:</strong> ${data.orderNumber}</p>
+                <p><strong>Order Date:</strong> ${new Date(
+                  data.orderDate
+                ).toLocaleString()}</p>
+                <p><strong>Total Amount:</strong> ₹${data.amount.toFixed(2)}</p>
+              </div>
+              
+              <div class="items">
+                <h3>Items Ordered</h3>
+                ${data.items
+                  .map(
+                    (item) => `
+                  <div class="item">
+                    <strong>${item.name}</strong><br>
+                    Quantity: ${item.quantity} × ₹${item.price.toFixed(
+                      2
+                    )} = ₹${(item.price * item.quantity).toFixed(2)}
+                  </div>
+                `
+                  )
+                  .join("")}
+              </div>
+              
+              <div class="shipping-info">
+                <h3>📦 Shipping Address</h3>
+                <p><strong>${data.shippingAddress.name}</strong></p>
+                <p>${data.shippingAddress.street}</p>
+                <p>${data.shippingAddress.city}, ${
+        data.shippingAddress.state
+      } - ${data.shippingAddress.zipCode}</p>
+                <p>Phone: ${data.shippingAddress.phone}</p>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${
+                  data.trackingUrl
+                }" class="track-button">Track Your Order</a>
+              </div>
+              
+              <p><strong>Estimated Delivery:</strong> 5-7 business days</p>
+              <p>You will receive tracking information once your order ships.</p>
+            </div>
+            <div class="footer">
+              <p>© 2024 Lion Bidi - Premium Quality Products</p>
+              <p>Need help? Contact us at support@lionbidi.com</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    },
+
+    payment_failed: {
+      subject: `❌ Payment Issue - Order ${data.orderNumber} | Lion Bidi`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>Payment Issue - Lion Bidi</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            .header { background: linear-gradient(135deg, #ea580c, #dc2626, #ea580c); padding: 30px 20px; text-align: center; color: white; }
+            .content { padding: 30px; }
+            .error { background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .order-details { background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .retry-button { background: #dc2626; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; margin: 10px 0; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>❌ Payment Issue</h1>
+              <p>Lion Bidi - Premium Quality</p>
+            </div>
+            <div class="content">
+              <div class="error">
+                <h3>Payment Verification Failed</h3>
+                <p>We were unable to verify your payment for order ${
+                  data.orderNumber
+                }.</p>
+                <p><strong>Reason:</strong> ${data.reason}</p>
+              </div>
+              
+              <div class="order-details">
+                <h3>Order Details</h3>
+                <p><strong>Order Number:</strong> ${data.orderNumber}</p>
+                <p><strong>Amount:</strong> ₹${data.amount.toFixed(2)}</p>
+              </div>
+              
+              <p>Please try submitting your payment details again or contact our support team for assistance.</p>
+              
+              <div style="text-align: center;">
+                <a href="${
+                  data.retryUrl
+                }" class="retry-button">Retry Payment</a>
+              </div>
+            </div>
+            <div class="footer">
+            <p>© 2024 Lion Bidi - Premium Quality Products</p>
+            <p>Need help? Contact us at <a href="mailto:lionbidicompany@gmail.com" style="color: #dc2626;">lionbidicompany@gmail.com</a> or call us at +91-9589773525</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    },
+  };
+
+  return templates[type] || templates.order_confirmed;
+};
+
 // Enhanced send email function with retry logic
-const sendEmailOTP = async (email, otp, type = "verification", retryCount = 0) => {
+const sendEmailOTP = async (
+  email,
+  otp,
+  type = "verification",
+  retryCount = 0
+) => {
   const maxRetries = 3;
-  
+
   try {
-    console.log(`Attempting to send ${type} email to:`, email, `(Attempt ${retryCount + 1})`);
-    
+    console.log(
+      `Attempting to send ${type} email to:`,
+      email,
+      `(Attempt ${retryCount + 1})`
+    );
+
     const transporter = createTransporter();
     const template = getEmailTemplate(otp, type);
 
@@ -284,9 +546,9 @@ const sendEmailOTP = async (email, otp, type = "verification", retryCount = 0) =
       html: template.html,
       // Add additional headers for better deliverability
       headers: {
-        'X-Priority': '1',
-        'X-MSMail-Priority': 'High',
-        'Importance': 'High',
+        "X-Priority": "1",
+        "X-MSMail-Priority": "High",
+        Importance: "High",
       },
     };
 
@@ -297,7 +559,7 @@ const sendEmailOTP = async (email, otp, type = "verification", retryCount = 0) =
     });
 
     const result = await transporter.sendMail(mailOptions);
-    
+
     console.log("Email sent successfully:", {
       messageId: result.messageId,
       accepted: result.accepted,
@@ -306,7 +568,6 @@ const sendEmailOTP = async (email, otp, type = "verification", retryCount = 0) =
     });
 
     return result;
-    
   } catch (error) {
     console.error(`Send email error (Attempt ${retryCount + 1}):`, {
       message: error.message,
@@ -315,18 +576,23 @@ const sendEmailOTP = async (email, otp, type = "verification", retryCount = 0) =
     });
 
     // Retry logic for transient errors
-    if (retryCount < maxRetries && (
-      error.code === 'ECONNRESET' || 
-      error.code === 'ETIMEDOUT' || 
-      error.code === 'ENOTFOUND' ||
-      error.message.includes('timeout')
-    )) {
+    if (
+      retryCount < maxRetries &&
+      (error.code === "ECONNRESET" ||
+        error.code === "ETIMEDOUT" ||
+        error.code === "ENOTFOUND" ||
+        error.message.includes("timeout"))
+    ) {
       console.log(`Retrying email send in ${(retryCount + 1) * 2} seconds...`);
-      await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 2000));
+      await new Promise((resolve) =>
+        setTimeout(resolve, (retryCount + 1) * 2000)
+      );
       return sendEmailOTP(email, otp, type, retryCount + 1);
     }
 
-    throw new Error(`Failed to send email after ${retryCount + 1} attempts: ${error.message}`);
+    throw new Error(
+      `Failed to send email after ${retryCount + 1} attempts: ${error.message}`
+    );
   }
 };
 
@@ -334,28 +600,28 @@ const sendEmailOTP = async (email, otp, type = "verification", retryCount = 0) =
 const testEmailService = async (testEmail = null) => {
   try {
     console.log("Testing email service...");
-    
+
     // Test with provided email or default
-    const targetEmail = testEmail || process.env.EMAIL_USER || "test@example.com";
+    const targetEmail =
+      testEmail || process.env.EMAIL_USER || "test@example.com";
     const testOtp = generateOTP();
-    
+
     console.log(`Sending test email to: ${targetEmail}`);
-    
+
     const result = await sendEmailOTP(targetEmail, testOtp, "verification");
-    
+
     console.log("Email service test successful:", {
       messageId: result.messageId,
       targetEmail,
       testOtp,
     });
-    
+
     return {
       success: true,
       messageId: result.messageId,
       targetEmail,
       testOtp,
     };
-    
   } catch (error) {
     console.error("Email service test failed:", error.message);
     return {
@@ -368,38 +634,40 @@ const testEmailService = async (testEmail = null) => {
 
 // Validate email configuration
 const validateEmailConfig = () => {
-  const requiredEnvVars = ['EMAIL_USER', 'EMAIL_PASS'];
-  const missing = requiredEnvVars.filter(varName => !process.env[varName]);
-  
+  const requiredEnvVars = ["EMAIL_USER", "EMAIL_PASS"];
+  const missing = requiredEnvVars.filter((varName) => !process.env[varName]);
+
   if (missing.length > 0) {
-    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+    throw new Error(
+      `Missing required environment variables: ${missing.join(", ")}`
+    );
   }
-  
-  console.log('Email configuration validated successfully');
+
+  console.log("Email configuration validated successfully");
   return true;
 };
 
 // Email rate limiting helper (optional)
 const emailRateLimit = new Map();
 
-const checkEmailRateLimit = (email, type = 'general') => {
+const checkEmailRateLimit = (email, type = "general") => {
   const key = `${email}:${type}`;
   const now = Date.now();
   const minute = 60 * 1000;
-  
+
   if (!emailRateLimit.has(key)) {
     emailRateLimit.set(key, []);
   }
-  
+
   const attempts = emailRateLimit.get(key);
   // Remove attempts older than 1 minute
-  const recentAttempts = attempts.filter(time => now - time < minute);
-  
+  const recentAttempts = attempts.filter((time) => now - time < minute);
+
   // Check rate limit (max 3 emails per minute per email/type)
   if (recentAttempts.length >= 3) {
     return false;
   }
-  
+
   recentAttempts.push(now);
   emailRateLimit.set(key, recentAttempts);
   return true;
@@ -408,6 +676,7 @@ const checkEmailRateLimit = (email, type = 'general') => {
 module.exports = {
   generateOTP,
   sendEmailOTP,
+  sendOrderNotificationEmail,
   testEmailService,
   createTransporter,
   validateEmailConfig,

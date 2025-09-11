@@ -78,7 +78,7 @@ async function createFirstAdmin() {
     const firstAdmin = new Admin({
       username: 'admin',
       email: 'admin@yourcompany.com',
-      password: 'admin123', // Will be hashed automatically
+      password: 'admin123',
       role: 'super_admin',
       permissions: ['payment_verification', 'order_management', 'user_management', 'analytics']
     });

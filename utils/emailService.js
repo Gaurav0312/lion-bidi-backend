@@ -297,10 +297,26 @@ const getEmailTemplate = (otp, type = "verification") => {
   return templates[type] || templates.verification;
 };
 
+// Fixed getOrderEmailTemplate function for utils/emailService.js
 const getOrderEmailTemplate = (type, data) => {
+  // Add safety checks for data
+  const safeData = {
+    orderNumber: data?.orderNumber || "Unknown",
+    customerName: data?.customerName || "Unknown Customer",
+    customerEmail: data?.customerEmail || "No email provided",
+    amount: data?.amount || 0,
+    transactionId: data?.transactionId || "Unknown",
+    orderDate: data?.orderDate || new Date(),
+    items: Array.isArray(data?.items) ? data.items : [],
+    shippingAddress: data?.shippingAddress || {},
+    trackingUrl: data?.trackingUrl || "#",
+    retryUrl: data?.retryUrl || "#",
+    reason: data?.reason || "Unknown reason"
+  };
+
   const templates = {
     admin_payment_verification: {
-      subject: `🔍 Payment Verification Required - Order ${data.orderNumber}`,
+      subject: `🔍 Payment Verification Required - Order ${safeData.orderNumber}`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -334,29 +350,24 @@ const getOrderEmailTemplate = (type, data) => {
               
               <div class="order-details">
                 <h3>Order Details</h3>
-                <p><strong>Order Number:</strong> ${data.orderNumber}</p>
-                <p><strong>Customer:</strong> ${data.customerName}</p>
-                <p><strong>Email:</strong> ${data.customerEmail}</p>
-                <p><strong>Amount:</strong> ₹${data.amount.toFixed(2)}</p>
-                <p><strong>Transaction ID:</strong> ${data.transactionId}</p>
-                <p><strong>Order Date:</strong> ${new Date(
-                  data.orderDate
-                ).toLocaleString()}</p>
+                <p><strong>Order Number:</strong> ${safeData.orderNumber}</p>
+                <p><strong>Customer:</strong> ${safeData.customerName}</p>
+                <p><strong>Email:</strong> ${safeData.customerEmail}</p>
+                <p><strong>Amount:</strong> ₹${safeData.amount.toFixed(2)}</p>
+                <p><strong>Transaction ID:</strong> ${safeData.transactionId}</p>
+                <p><strong>Order Date:</strong> ${new Date(safeData.orderDate).toLocaleString()}</p>
               </div>
               
               <div class="items">
                 <h3>Items Ordered</h3>
-                ${data.items
-                  .map(
-                    (item) => `
-                  <div class="item">
-                    <strong>${item.name}</strong> × ${item.quantity} = ₹${(
-                      item.price * item.quantity
-                    ).toFixed(2)}
-                  </div>
-                `
-                  )
-                  .join("")}
+                ${safeData.items.length > 0 
+                  ? safeData.items.map(item => `
+                    <div class="item">
+                      <strong>${item?.name || 'Unknown Item'}</strong> × ${item?.quantity || 0} = ₹${((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}
+                    </div>
+                  `).join("")
+                  : '<div class="item">No items found</div>'
+                }
               </div>
             </div>
             <div class="footer">
@@ -368,8 +379,88 @@ const getOrderEmailTemplate = (type, data) => {
       `,
     },
 
+    admin_new_order: {
+      subject: `🔔 New Order Alert - ${safeData.orderNumber} | Lion Bidi`,
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <title>New Order Alert - Lion Bidi Admin</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
+            .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+            .header { background: linear-gradient(135deg, #ea580c, #dc2626); padding: 30px 20px; text-align: center; color: white; }
+            .content { padding: 30px; }
+            .alert { background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+            .order-details { background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+            .action-button { background: #dc2626; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; display: inline-block; margin: 20px 0; font-weight: bold; }
+            .items { margin: 15px 0; }
+            .item { padding: 10px 0; border-bottom: 1px solid #e5e7eb; display: flex; justify-content: space-between; }
+            .footer { background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 12px; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>🔔 New Order Received!</h1>
+              <p>Lion Bidi Admin Notification</p>
+            </div>
+            
+            <div class="content">
+              <div class="alert">
+                <h2>⚡ Action Required</h2>
+                <p>A new order has been placed and requires your attention.</p>
+                <p><strong>Order: ${safeData.orderNumber}</strong></p>
+                <p><strong>Amount: ₹${safeData.amount.toFixed(2)}</strong></p>
+              </div>
+              
+              <div class="order-details">
+                <h3>📋 Order Summary</h3>
+                <p><strong>Customer:</strong> ${safeData.customerName}</p>
+                <p><strong>Email:</strong> ${safeData.customerEmail}</p>
+                <p><strong>Order Date:</strong> ${new Date(safeData.orderDate).toLocaleString("en-IN")}</p>
+                <p><strong>Total Amount:</strong> ₹${safeData.amount.toFixed(2)}</p>
+                
+                <div class="items">
+                  <h4>Items Ordered:</h4>
+                  ${safeData.items.length > 0
+                    ? safeData.items.map(item => `
+                      <div class="item">
+                        <span><strong>${item?.name || 'Unknown Item'}</strong> × ${item?.quantity || 0}</span>
+                        <span>₹${((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}</span>
+                      </div>
+                    `).join("")
+                    : '<p>No items found</p>'
+                  }
+                </div>
+              </div>
+              
+              <div style="text-align: center;">
+                <a href="${process.env.ADMIN_PANEL_URL || "http://localhost:3000"}/admin/payment-verification" 
+                   class="action-button">
+                  🚀 Go to Admin Panel
+                </a>
+              </div>
+              
+              <p style="color: #6b7280; font-size: 14px; text-align: center;">
+                The customer will submit payment details shortly. Please monitor the admin panel for payment verification requests.
+              </p>
+            </div>
+            
+            <div class="footer">
+              <p><strong>© 2024 Lion Bidi</strong> - Admin Notification System</p>
+              <p>This is an automated notification. Please do not reply to this email.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    },
+
     order_confirmed: {
-      subject: `✅ Order Confirmed - ${data.orderNumber} | Lion Bidi`,
+      subject: `✅ Order Confirmed - ${safeData.orderNumber} | Lion Bidi`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -399,49 +490,40 @@ const getOrderEmailTemplate = (type, data) => {
             </div>
             <div class="content">
               <div class="success">
-                <h2>🎉 Thank you, ${data.customerName}!</h2>
+                <h2>🎉 Thank you, ${safeData.customerName}!</h2>
                 <p>Your order has been confirmed and is being processed.</p>
               </div>
               
               <div class="order-details">
                 <h3>Order Summary</h3>
-                <p><strong>Order Number:</strong> ${data.orderNumber}</p>
-                <p><strong>Order Date:</strong> ${new Date(
-                  data.orderDate
-                ).toLocaleString()}</p>
-                <p><strong>Total Amount:</strong> ₹${data.amount.toFixed(2)}</p>
+                <p><strong>Order Number:</strong> ${safeData.orderNumber}</p>
+                <p><strong>Order Date:</strong> ${new Date(safeData.orderDate).toLocaleString()}</p>
+                <p><strong>Total Amount:</strong> ₹${safeData.amount.toFixed(2)}</p>
               </div>
               
               <div class="items">
                 <h3>Items Ordered</h3>
-                ${data.items
-                  .map(
-                    (item) => `
-                  <div class="item">
-                    <strong>${item.name}</strong><br>
-                    Quantity: ${item.quantity} × ₹${item.price.toFixed(
-                      2
-                    )} = ₹${(item.price * item.quantity).toFixed(2)}
-                  </div>
-                `
-                  )
-                  .join("")}
+                ${safeData.items.length > 0
+                  ? safeData.items.map(item => `
+                    <div class="item">
+                      <strong>${item?.name || 'Unknown Item'}</strong><br>
+                      Quantity: ${item?.quantity || 0} × ₹${(item?.price || 0).toFixed(2)} = ₹${((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}
+                    </div>
+                  `).join("")
+                  : '<div class="item">No items found</div>'
+                }
               </div>
               
               <div class="shipping-info">
                 <h3>📦 Shipping Address</h3>
-                <p><strong>${data.shippingAddress.name}</strong></p>
-                <p>${data.shippingAddress.street}</p>
-                <p>${data.shippingAddress.city}, ${
-        data.shippingAddress.state
-      } - ${data.shippingAddress.zipCode}</p>
-                <p>Phone: ${data.shippingAddress.phone}</p>
+                <p><strong>${safeData.shippingAddress?.name || 'Unknown'}</strong></p>
+                <p>${safeData.shippingAddress?.street || 'Address not provided'}</p>
+                <p>${safeData.shippingAddress?.city || 'City'}, ${safeData.shippingAddress?.state || 'State'} - ${safeData.shippingAddress?.zipCode || 'ZIP'}</p>
+                <p>Phone: ${safeData.shippingAddress?.phone || 'Not provided'}</p>
               </div>
               
               <div style="text-align: center;">
-                <a href="${
-                  data.trackingUrl
-                }" class="track-button">Track Your Order</a>
+                <a href="${safeData.trackingUrl}" class="track-button">Track Your Order</a>
               </div>
               
               <p><strong>Estimated Delivery:</strong> 5-7 business days</p>
@@ -458,7 +540,7 @@ const getOrderEmailTemplate = (type, data) => {
     },
 
     payment_failed: {
-      subject: `❌ Payment Issue - Order ${data.orderNumber} | Lion Bidi`,
+      subject: `❌ Payment Issue - Order ${safeData.orderNumber} | Lion Bidi`,
       html: `
         <!DOCTYPE html>
         <html>
@@ -486,29 +568,25 @@ const getOrderEmailTemplate = (type, data) => {
             <div class="content">
               <div class="error">
                 <h3>Payment Verification Failed</h3>
-                <p>We were unable to verify your payment for order ${
-                  data.orderNumber
-                }.</p>
-                <p><strong>Reason:</strong> ${data.reason}</p>
+                <p>We were unable to verify your payment for order ${safeData.orderNumber}.</p>
+                <p><strong>Reason:</strong> ${safeData.reason}</p>
               </div>
               
               <div class="order-details">
                 <h3>Order Details</h3>
-                <p><strong>Order Number:</strong> ${data.orderNumber}</p>
-                <p><strong>Amount:</strong> ₹${data.amount.toFixed(2)}</p>
+                <p><strong>Order Number:</strong> ${safeData.orderNumber}</p>
+                <p><strong>Amount:</strong> ₹${safeData.amount.toFixed(2)}</p>
               </div>
               
               <p>Please try submitting your payment details again or contact our support team for assistance.</p>
               
               <div style="text-align: center;">
-                <a href="${
-                  data.retryUrl
-                }" class="retry-button">Retry Payment</a>
+                <a href="${safeData.retryUrl}" class="retry-button">Retry Payment</a>
               </div>
             </div>
             <div class="footer">
-            <p>© 2024 Lion Bidi - Premium Quality Products</p>
-            <p>Need help? Contact us at <a href="mailto:lionbidicompany@gmail.com" style="color: #dc2626;">lionbidicompany@gmail.com</a> or call us at +91-9589773525</p>
+              <p>© 2024 Lion Bidi - Premium Quality Products</p>
+              <p>Need help? Contact us at <a href="mailto:lionbidicompany@gmail.com" style="color: #dc2626;">lionbidicompany@gmail.com</a> or call us at +91-9589773525</p>
             </div>
           </div>
         </body>

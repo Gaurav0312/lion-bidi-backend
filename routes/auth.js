@@ -10,131 +10,6 @@ const bcrypt = require("bcryptjs");
 const axios = require('axios'); // Add this import - it's missing!
 
 
-// Add Firebase Admin import
-const admin = require("../config/firebase-admin");
-
-let firebaseAdmin = null;
-try {
-  const firebase = require("../config/firebase-admin");
-  firebaseAdmin = firebase;
-  console.log("Firebase admin loaded successfully");
-} catch (error) {
-  console.warn("Firebase admin failed to load:", error.message);
-  console.warn("Social login will be disabled");
-}
-
-// ==================== SOCIAL LOGIN (Google/Facebook) ====================
-router.post("/social-login", async (req, res) => {
-  try {
-    const { provider, idToken, email, name, avatar, uid } = req.body;
-    console.log("Social login request received:", { provider, email, name });
-
-    // Check if Firebase is available
-    if (!firebaseAdmin || !firebaseAdmin.isInitialized()) {
-      console.warn(
-        "Firebase not initialized, falling back to basic social login"
-      );
-
-      // Fallback: Create/login user without Firebase verification
-      // This is less secure but allows social login to work
-      return await handleSocialLoginFallback(req, res, {
-        provider,
-        email,
-        name,
-        avatar,
-        uid,
-      });
-    }
-
-    // Verify Firebase token
-    try {
-      console.log("Verifying Firebase token...");
-      const decodedToken = await firebaseAdmin.verifyIdToken(idToken);
-      console.log("Token verified successfully for:", decodedToken.email);
-
-      return await handleSocialLogin(req, res, {
-        provider,
-        email: decodedToken.email,
-        name: decodedToken.name,
-        avatar: decodedToken.picture,
-        uid: decodedToken.uid,
-        verified: true,
-      });
-    } catch (tokenError) {
-      console.error("Token verification failed:", tokenError);
-      return res.status(401).json({
-        success: false,
-        message: "Invalid social login token",
-        error: tokenError.message,
-      });
-    }
-  } catch (error) {
-    console.error("Social login error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Social login failed",
-      error: error.message,
-    });
-  }
-});
-
-// Helper function for verified social login
-const handleSocialLogin = async (req, res, userData) => {
-  try {
-    const { provider, email, name, avatar, uid } = userData;
-
-    // Check if user exists
-    let user = await User.findOne({
-      $or: [{ email }, { providerId: uid, provider }],
-    });
-
-    if (user) {
-      // Update existing user
-      user.lastLogin = new Date();
-      user.avatar = avatar || user.avatar;
-      user.name = name || user.name;
-      if (!user.providerId) {
-        user.provider = provider;
-        user.providerId = uid;
-      }
-      await user.save();
-      console.log("Existing social user logged in:", user.email);
-    } else {
-      // Create new user
-      user = await User.create({
-        name,
-        email,
-        provider,
-        providerId: uid,
-        avatar,
-        isEmailVerified: true, // Social accounts are pre-verified
-        lastLogin: new Date(),
-      });
-      console.log("New social user created:", user.email);
-    }
-
-    // Generate JWT token
-    const token = user.getSignedJwtToken();
-
-    // Prepare response
-    const userResponse = { ...user.toObject() };
-    delete userResponse.password;
-
-    res.status(200).json({
-      success: true,
-      message: "Social login successful",
-      token,
-      user: userResponse,
-    });
-  } catch (error) {
-    console.error("Handle social login error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Social login processing failed",
-      error: error.message,
-    });
-  }
-};
 
 
 // Google OAuth callback handler - Add this route to your existing auth.js
@@ -142,134 +17,154 @@ const handleSocialLogin = async (req, res, userData) => {
 
 router.post('/google/callback', async (req, res) => {
   try {
-    const { code } = req.body;
+    const { code, state, attempt = 1 } = req.body;
     
-    console.log('Google OAuth callback received with code:', !!code);
+    console.log(`Google OAuth attempt ${attempt} for code:`, !!code);
     
     if (!code) {
       return res.status(400).json({
         success: false,
-        message: 'Authorization code is required'
+        message: 'Authorization code is required',
+        retryable: false
       });
     }
 
-    // Check required environment variables
-    if (!process.env.GOOGLE_CLIENT_ID || !process.env.GOOGLE_CLIENT_SECRET) {
-      console.error('Missing Google OAuth credentials in environment variables');
+    // Add artificial delay for first attempt to prevent rapid state changes
+    if (attempt === 1) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // Increased timeout
+
+    try {
+      console.log(`Exchanging code for token (attempt ${attempt})...`);
+      
+      const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
+        client_id: process.env.GOOGLE_CLIENT_ID,
+        client_secret: process.env.GOOGLE_CLIENT_SECRET,
+        code: code,
+        grant_type: 'authorization_code',
+        redirect_uri: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/google/callback`
+      }, {
+        signal: controller.signal,
+        timeout: 10000
+      });
+      
+      clearTimeout(timeoutId);
+      const { access_token } = tokenResponse.data;
+      
+      console.log('Getting user info from Google...');
+      const googleUserResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
+        headers: { Authorization: `Bearer ${access_token}` },
+        timeout: 8000
+      });
+      
+      const googleUser = googleUserResponse.data;
+      console.log('Google user received:', { id: googleUser.id, email: googleUser.email });
+      
+      // Rest of your user creation/update logic...
+      let user = await User.findOne({ 
+        $or: [
+          { email: googleUser.email },
+          { googleId: googleUser.id }
+        ]
+      });
+      
+      if (user) {
+        console.log('Updating existing user:', user.email);
+        user.googleId = googleUser.id;
+        user.name = googleUser.name || user.name;
+        user.avatar = googleUser.picture || user.avatar;
+        user.provider = 'google';
+        user.isEmailVerified = true;
+        user.lastLogin = new Date();
+        await user.save({ validateBeforeSave: false });
+      } else {
+        console.log('Creating new Google user for:', googleUser.email);
+        const newUserData = {
+          name: googleUser.name,
+          email: googleUser.email,
+          googleId: googleUser.id,
+          avatar: googleUser.picture,
+          provider: 'google',
+          isEmailVerified: true,
+          lastLogin: new Date(),
+          address: { country: "India" },
+          isAdmin: false,
+          role: "customer",
+          isPhoneVerified: false,
+          orders: [],
+          isActive: true,
+          addresses: [],
+          wishlist: [],
+          cart: [],
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+        
+        const result = await User.collection.insertOne(newUserData);
+        user = await User.findById(result.insertedId);
+        console.log('✅ Successfully created NEW Google user:', user.email);
+      }
+      
+      const token = user.getSignedJwtToken();
+      const userData = user.toObject();
+      delete userData.password;
+      delete userData.__v;
+      
+      console.log('🎉 Google OAuth successful for:', userData.email);
+      
+      // Add small delay before sending success response
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      res.json({
+        success: true,
+        message: 'Google authentication successful',
+        token,
+        user: userData
+      });
+      
+    } catch (tokenError) {
+      clearTimeout(timeoutId);
+      
+      console.error(`Google OAuth token exchange error (attempt ${attempt}):`, tokenError.message);
+      
+      let errorMessage = 'Authentication failed';
+      let retryable = false;
+      
+      if (tokenError.code === 'ECONNABORTED' || tokenError.code === 'ETIMEDOUT') {
+        errorMessage = 'Connection timeout. Please try again.';
+        retryable = attempt < 3;
+      } else if (tokenError.response?.status === 400) {
+        errorMessage = 'Invalid authorization code. Please try logging in again.';
+        retryable = false;
+      } else if (tokenError.response?.status >= 500) {
+        errorMessage = 'Server error. Please try again.';
+        retryable = attempt < 3;
+      }
+      
       return res.status(500).json({
         success: false,
-        message: 'Google OAuth not properly configured'
+        message: errorMessage,
+        error: tokenError.message,
+        retryable,
+        attempt
       });
     }
-    
-    console.log('Exchanging code for access token...');
-    
-    // Exchange authorization code for access token
-    const tokenResponse = await axios.post('https://oauth2.googleapis.com/token', {
-      client_id: process.env.GOOGLE_CLIENT_ID,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET,
-      code: code,
-      grant_type: 'authorization_code',
-      redirect_uri: `${process.env.FRONTEND_URL || 'http://localhost:3000'}/auth/google/callback`
-    }, {
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-    
-    const { access_token } = tokenResponse.data;
-    console.log('Access token received from Google');
-    
-    // Get user information from Google
-    const googleUserResponse = await axios.get('https://www.googleapis.com/oauth2/v2/userinfo', {
-      headers: {
-        Authorization: `Bearer ${access_token}`
-      }
-    });
-    
-    const googleUser = googleUserResponse.data;
-    console.log('Google user data received:', {
-      id: googleUser.id,
-      email: googleUser.email,
-      name: googleUser.name
-    });
-    
-    // Find or create user in your database
-    let user = await User.findOne({ 
-      $or: [
-        { email: googleUser.email },
-        { googleId: googleUser.id }
-      ]
-    });
-    
-    if (user) {
-      // Update existing user
-      user.googleId = googleUser.id;
-      user.name = googleUser.name || user.name;
-      user.avatar = googleUser.picture || user.avatar;
-      user.isEmailVerified = true; // Google accounts are verified
-      user.provider = 'google';
-      user.lastLogin = new Date();
-      await user.save();
-      
-      console.log('Existing Google user logged in:', user.email);
-    } else {
-      // Create new user
-      user = await User.create({
-        name: googleUser.name,
-        email: googleUser.email,
-        googleId: googleUser.id,
-        avatar: googleUser.picture,
-        provider: 'google',
-        isEmailVerified: true, // Google accounts are pre-verified
-        lastLogin: new Date(),
-        // Don't require password or phone for Google users
-      });
-      
-      console.log('New Google user created:', user.email);
-    }
-    
-    // Generate JWT token
-    const token = user.getSignedJwtToken();
-    
-    // Prepare user data for response (remove sensitive data)
-    const userData = { ...user.toObject() };
-    delete userData.password;
-    delete userData.__v;
-    
-    res.status(200).json({
-      success: true,
-      message: 'Google authentication successful',
-      token,
-      user: userData
-    });
     
   } catch (error) {
-    console.error('Google OAuth error:', error);
-    
-    // More detailed error logging
-    if (error.response) {
-      console.error('Google API error response:', {
-        status: error.response.status,
-        data: error.response.data
-      });
-    }
-    
-    // Handle specific error cases
-    if (error.response?.status === 400) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid authorization code or expired session'
-      });
-    }
-    
+    console.error('Google OAuth callback error:', error);
     res.status(500).json({
       success: false,
-      message: 'Google authentication failed',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      message: 'Authentication failed',
+      error: error.message,
+      retryable: false
     });
   }
 });
+
+
 
 router.post('/google-signin', async (req, res) => {
   try {
@@ -321,8 +216,6 @@ router.post('/google-signin', async (req, res) => {
         avatar: picture,
         isEmailVerified: true,
         lastLogin: new Date(),
-        // Set a default phone or make it optional in your User model
-        phone: '0000000000', // You might want to handle this differently
       });
       console.log('New Google user created:', user.email);
     }
@@ -349,70 +242,6 @@ router.post('/google-signin', async (req, res) => {
     });
   }
 });
-
-// Fallback function for when Firebase is not available
-const handleSocialLoginFallback = async (req, res, userData) => {
-  try {
-    const { provider, email, name, avatar, uid } = userData;
-
-    if (!email || !name) {
-      return res.status(400).json({
-        success: false,
-        message: "Email and name are required for social login",
-      });
-    }
-
-    console.log("Using social login fallback for:", email);
-
-    // Check if user exists by email
-    let user = await User.findOne({ email });
-
-    if (user) {
-      // Update existing user
-      user.lastLogin = new Date();
-      user.avatar = avatar || user.avatar;
-      user.name = name || user.name;
-      user.provider = provider;
-      user.providerId = uid;
-      await user.save();
-      console.log("Existing user updated with social info:", user.email);
-    } else {
-      // Create new user
-      user = await User.create({
-        name,
-        email,
-        provider,
-        providerId: uid,
-        avatar,
-        isEmailVerified: true,
-        lastLogin: new Date(),
-        // Don't require phone for social login
-      });
-      console.log("New social user created (fallback):", user.email);
-    }
-
-    // Generate JWT token
-    const token = user.getSignedJwtToken();
-
-    // Prepare response
-    const userResponse = { ...user.toObject() };
-    delete userResponse.password;
-
-    res.status(200).json({
-      success: true,
-      message: "Social login successful (fallback mode)",
-      token,
-      user: userResponse,
-    });
-  } catch (error) {
-    console.error("Social login fallback error:", error);
-    res.status(500).json({
-      success: false,
-      message: "Social login failed",
-      error: error.message,
-    });
-  }
-};
 
 
 // POST /api/orders/:orderId/confirm-payment
@@ -525,26 +354,24 @@ router.get('/number/:orderNumber', async (req, res) => {
   }
 });
 
-// ==================== REGULAR EMAIL/PASSWORD LOGIN ====================
+// Replace both login routes with this single, comprehensive one
 router.post("/login", async (req, res) => {
   try {
-    const { email, password } = req.body;
-    console.log("Email login attempt for:", email);
-
-    // Validation
-    if (!email || !password) {
+    const { email, password, otp } = req.body;
+    
+    if (!email) {
       return res.status(400).json({
         success: false,
-        message: "Please provide email and password",
+        message: "Email is required"
       });
     }
 
-    // Find user and include password for comparison
-    const user = await User.findOne({ email }).select("+password");
+    // Find user
+    const user = await User.findOne({ email: email.toLowerCase() }).select("+password");
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Invalid credentials"
       });
     }
 
@@ -552,16 +379,39 @@ router.post("/login", async (req, res) => {
     if (!user.isActive) {
       return res.status(401).json({
         success: false,
-        message: "Account is deactivated",
+        message: "Account is deactivated"
       });
     }
 
-    // Verify password
-    const isPasswordMatch = await user.comparePassword(password);
-    if (!isPasswordMatch) {
-      return res.status(401).json({
+    // OTP Login
+    if (otp) {
+      const otpKey = `login:${email.toLowerCase()}`;
+      if (!verifyStoredOTP(otpKey, otp)) {
+        return res.status(400).json({
+          success: false,
+          message: "Invalid or expired OTP",
+          code: "INVALID_OTP"
+        });
+      }
+      
+      // Clear OTP after successful verification
+      otpStore.delete(otpKey);
+    } 
+    // Password Login
+    else if (password) {
+      const isPasswordMatch = await user.comparePassword(password);
+      if (!isPasswordMatch) {
+        return res.status(401).json({
+          success: false,
+          message: "Invalid email or password"
+        });
+      }
+    } 
+    // Neither OTP nor password provided
+    else {
+      return res.status(400).json({
         success: false,
-        message: "Invalid email or password",
+        message: "Either password or OTP is required"
       });
     }
 
@@ -572,27 +422,31 @@ router.post("/login", async (req, res) => {
     // Generate JWT token
     const token = user.getSignedJwtToken();
 
-    // Remove password from response
+    // Prepare response
     const userResponse = { ...user.toObject() };
     delete userResponse.password;
 
-    console.log("Email login successful for:", user.email);
+    console.log("Login successful for:", user.email);
 
     res.status(200).json({
       success: true,
       message: "Login successful",
       token,
-      user: userResponse,
+      user: userResponse
     });
+
   } catch (error) {
-    console.error("Email login error:", error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
       message: "Login failed",
-      error: error.message,
+      error: error.message
     });
   }
 });
+
+
+
 
 // ================
 // Verify Authentication
@@ -1162,114 +1016,7 @@ router.post("/send-email-otp", async (req, res) => {
   }
 });
 
-// =============
-// Login with Email/Password or Email/OTP
-// =============
-router.post("/login", async (req, res) => {
-  try {
-    // Email + OTP login
-    if (req.body.email && req.body.otp) {
-      const { email, otp } = req.body;
 
-      const user = await User.findOne({ email: email.toLowerCase() });
-      if (!user) {
-        return res.status(400).json({ message: "Invalid email or OTP" });
-      }
-
-      // Verify OTP
-      const otpKey = `login:${email.toLowerCase()}`;
-      if (!verifyStoredOTP(otpKey, otp)) {
-        return res.status(400).json({
-          message: "Invalid or expired OTP",
-          code: "INVALID_OTP",
-        });
-      }
-
-      // Clear OTP
-      otpStore.delete(otpKey);
-
-      // Update last login
-      user.lastLogin = new Date();
-      await user.save();
-
-      const token = jwt.sign(
-        { id: user._id, email: user.email },
-        process.env.JWT_SECRET || "your-secret-key",
-        { expiresIn: "30d" }
-      );
-
-      return res.json({
-        message: "Login successful",
-        token,
-        user: {
-          _id: user._id,
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          phone: user.phone,
-          isAdmin: user.isAdmin || false,
-          role: user.role || "customer",
-          wishlist: user.wishlist || [],
-          cart: user.cart || [],
-          cartTotal: user.getCartTotal(),
-          cartItemsCount: user.getCartItemsCount(),
-        },
-      });
-    }
-
-    // Email + Password login
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res
-        .status(400)
-        .json({ message: "Email and password are required" });
-    }
-
-    const user = await User.findOne({ email: email.toLowerCase() }).select(
-      "+password"
-    );
-    if (!user) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      return res.status(400).json({ message: "Invalid credentials" });
-    }
-
-    // Update last login
-    user.lastLogin = new Date();
-    await user.save();
-
-    const token = jwt.sign(
-      { id: user._id, email: user.email },
-      process.env.JWT_SECRET || "your-secret-key",
-      { expiresIn: "30d" }
-    );
-
-    res.json({
-      message: "Login successful",
-      token,
-      user: {
-        _id: user._id,
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        isAdmin: user.isAdmin || false,
-        role: user.role || "customer",
-        wishlist: user.wishlist || [],
-        cart: user.cart || [],
-        cartTotal: user.getCartTotal(),
-        cartItemsCount: user.getCartItemsCount(),
-      },
-    });
-  } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: error.message });
-  }
-});
 
 // ================
 // Get current user

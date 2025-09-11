@@ -15,7 +15,7 @@ router.get('/admin/pending-verifications', adminAuth, async (req, res) => {
     const pendingOrders = await Order.find({
       'payment.paymentStatus': 'pending_verification'
     })
-    .populate('user', 'name email')
+   
     .sort({ 'payment.submittedAt': -1 });
 
     res.json({
@@ -32,51 +32,51 @@ router.get('/admin/pending-verifications', adminAuth, async (req, res) => {
 });
 
 // Verify/reject payment (Admin only)
-router.post('/:orderId/admin/verify-payment', adminAuth, async (req, res) => {
-  try {
-    const { orderId } = req.params;
-    const { verified, notes } = req.body;
+// router.post('/:orderId/admin/verify-payment', adminAuth, async (req, res) => {
+//   try {
+//     const { orderId } = req.params;
+//     const { verified, notes } = req.body;
 
-    const order = await Order.findById(orderId);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
+//     const order = await Order.findById(orderId);
+//     if (!order) {
+//       return res.status(404).json({
+//         success: false,
+//         message: 'Order not found'
+//       });
+//     }
 
-    // Update payment status
-    order.payment.paymentStatus = verified ? 'verified' : 'verification_failed';
-    order.payment.verificationNotes = notes || '';
-    order.payment.verifiedAt = new Date();
-    order.payment.verifiedBy = req.admin?.id; // If you track which admin verified
+//     // Update payment status
+//     order.payment.paymentStatus = verified ? 'verified' : 'verification_failed';
+//     order.payment.verificationNotes = notes || '';
+//     order.payment.verifiedAt = new Date();
+//     order.payment.verifiedBy = req.admin?.id; // If you track which admin verified
 
-    // Update order status based on verification
-    if (verified) {
-      order.status = 'confirmed';
-      order.confirmedAt = new Date();
-    } else {
-      order.status = 'payment_failed';
-    }
+//     // Update order status based on verification
+//     if (verified) {
+//       order.status = 'confirmed';
+//       order.confirmedAt = new Date();
+//     } else {
+//       order.status = 'payment_failed';
+//     }
 
-    await order.save();
+//     await order.save();
 
-    // Optional: Send email notification to customer
-    // await sendPaymentVerificationEmail(order, verified);
+//     // Optional: Send email notification to customer
+//     // await sendPaymentVerificationEmail(order, verified);
 
-    res.json({
-      success: true,
-      message: `Payment ${verified ? 'verified' : 'rejected'} successfully`,
-      order
-    });
-  } catch (error) {
-    console.error('Error verifying payment:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to verify payment'
-    });
-  }
-});
+//     res.json({
+//       success: true,
+//       message: `Payment ${verified ? 'verified' : 'rejected'} successfully`,
+//       order
+//     });
+//   } catch (error) {
+//     console.error('Error verifying payment:', error);
+//     res.status(500).json({
+//       success: false,
+//       message: 'Failed to verify payment'
+//     });
+//   }
+// });
 
 // @desc    Create new order from cart/checkout
 // @route   POST /api/orders/create
@@ -229,6 +229,33 @@ router.post("/create", auth, async (req, res) => {
         userUpdateError.message
       );
       // Don't fail the order creation if user update fails
+    }
+
+    try {
+      const { sendOrderNotificationEmail } = require('../utils/emailService');
+      
+      // Send admin notification email
+      await sendOrderNotificationEmail(
+        process.env.ADMIN_EMAIL || process.env.EMAIL_USER, // Admin email
+        'admin_new_order',
+        {
+          orderNumber: order.orderNumber,
+          customerName: order.shippingAddress.name,
+          customerEmail: order.shippingAddress.email,
+          amount: order.total,
+          transactionId: 'Pending verification',
+          orderDate: order.orderDate || order.createdAt,
+          items: order.items.map(item => ({
+            name: item.name,
+            quantity: item.quantity,
+            price: item.price
+          }))
+        }
+      );
+      console.log('✅ Admin notification email sent successfully');
+    } catch (emailError) {
+      console.error('❌ Failed to send admin notification email:', emailError.message);
+      // Don't fail the order creation if email fails
     }
 
     console.log("✅ Order created successfully:", order.orderNumber);

@@ -166,7 +166,6 @@ router.post("/add", auth, async (req, res) => {
 });
 
 // -------------------- Update Quantity --------------------
-// -------------------- Update Quantity --------------------
 router.put("/update/:productId", auth, async (req, res) => {
   try {
     const { productId } = req.params;

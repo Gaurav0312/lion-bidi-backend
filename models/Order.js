@@ -90,54 +90,45 @@ const shippingAddressSchema = new mongoose.Schema({
   country: { type: String, default: 'India', trim: true }
 });
 
-// Enhanced payment schema with better error handling
+// Updated payment schema - simpler structure
 const paymentInfoSchema = new mongoose.Schema({
-  method: { type: String, enum: ['UPI', 'Card', 'Cash'], default: 'UPI' },
-  
-  paymentStatus: { 
-    type: String, 
+  method: {
+    type: String,
+    default: 'UPI'
+  },
+  paymentStatus: {
+    type: String,
     enum: [
       'pending',
       'pending_verification',
       'verified',
       'verification_failed',
-      'completed',
-      'failed',
       'refunded'
-    ], 
-    default: 'pending' 
+    ],
+    default: 'pending'
   },
-  
-  transactionId: { 
+  transactionId: {
     type: String,
+    sparse: true, // Allows multiple null values but ensures uniqueness for non-null values
     uppercase: true,
-    trim: true,
-    default: null
+    trim: true
   },
-  
-  submittedAt: { type: Date, default: null },
-  verifiedAt: { type: Date, default: null },
-  paymentDate: { type: Date, default: null },
-  
-  amount: { 
-    type: Number, 
-    required: true,
-    min: [0, 'Payment amount cannot be negative']
-  },
-  upiId: { type: String, trim: true, default: null },
-  
-  screenshot: { type: String, default: null },
-  verificationNotes: { type: String, trim: true, default: '' },
+  screenshot: String, // Base64 encoded image or file path
+  upiId: String,
+  submittedAt: Date,
+  verifiedAt: Date,
+  verificationNotes: String,
   verifiedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
-    default: null
+    ref: 'User' // Changed from 'Admin' to 'User' to match your existing ref
   },
-  
-  ipAddress: { type: String, default: null },
-  userAgent: { type: String, default: null },
-  suspicionFlags: { type: [String], default: [] }
+  amount: {
+    type: Number,
+    required: true,
+    min: [0, 'Payment amount cannot be negative']
+  }
 });
+
 
 const orderSchema = new mongoose.Schema({
   orderNumber: {

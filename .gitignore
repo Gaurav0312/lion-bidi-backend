@@ -1,0 +1,12 @@
+# misc
+.DS_Store
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env
+
+
+
+service-account-key.json
+service-account-key.json:1

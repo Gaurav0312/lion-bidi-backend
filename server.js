@@ -1,9 +1,8 @@
-// server.js - Debug version to find the problematic route
+// server.js - FIXED VERSION
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
-const orderRoutes = require('./routes/orders');
 
 dotenv.config();
 const app = express();
@@ -13,7 +12,7 @@ app.use(cors({
   origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization', 'admin-key', 'x-admin-key']
 }));
 
 // Middleware
@@ -24,16 +23,16 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 async function connectDB() {
   try {
     await mongoose.connect(process.env.MONGODB_URI);
-    console.log("Connected to MongoDB");
+    console.log("✅ Connected to MongoDB");
   } catch (err) {
-    console.error("MongoDB connection error:", err);
+    console.error("❌ MongoDB connection error:", err);
     process.exit(1);
   }
 }
 
 connectDB();
 
-// Health check route (test this first)
+// Health check route
 app.get('/health', (req, res) => {
   res.status(200).json({ 
     message: 'Server is running!',
@@ -41,129 +40,114 @@ app.get('/health', (req, res) => {
   });
 });
 
-// Import and use routes one by one to find the problematic one
+// ✅ REGISTER ALL ROUTES (before error handlers)
 try {
-  console.log("Loading auth routes...");
+  console.log("📝 Loading auth routes...");
   const authRoutes = require('./routes/auth');
   app.use('/api/auth', authRoutes);
-  console.log("Auth routes loaded successfully");
+  console.log("✅ Auth routes loaded");
 } catch (error) {
-  console.error("Error loading auth routes:", error.message);
+  console.error("❌ Error loading auth routes:", error.message);
 }
 
 try {
-  console.log("Loading product routes...");
+  console.log("👑 Loading admin routes...");
+  const adminRoutes = require('./routes/admin');
+  app.use('/api/admin', adminRoutes);
+  console.log("✅ Admin routes loaded");
+} catch (error) {
+  console.error("❌ Error loading admin routes:", error.message);
+}
+
+try {
+  console.log("📦 Loading product routes...");
   const productRoutes = require('./routes/products');
   app.use('/api/products', productRoutes);
-  console.log("Product routes loaded successfully");
+  console.log("✅ Product routes loaded");
 } catch (error) {
-  console.error("Error loading product routes:", error.message);
+  console.error("❌ Error loading product routes:", error.message);
 }
 
 try {
-  console.log("Loading category routes...");
+  console.log("📂 Loading category routes...");
   const categoryRoutes = require('./routes/categories');
   app.use('/api/categories', categoryRoutes);
-  console.log("Category routes loaded successfully");
+  console.log("✅ Category routes loaded");
 } catch (error) {
-  console.error("Error loading category routes:", error.message);
+  console.error("❌ Error loading category routes:", error.message);
 }
 
 try {
-  console.log("Loading cart routes...");
+  console.log("🛒 Loading cart routes...");
   const cartRoutes = require('./routes/cart');
   app.use('/api/cart', cartRoutes);
-  console.log("Cart routes loaded successfully");
+  console.log("✅ Cart routes loaded");
 } catch (error) {
-  console.error("Error loading cart routes:", error.message);
+  console.error("❌ Error loading cart routes:", error.message);
 }
 
 try {
-  console.log("Loading wishlist routes...");
+  console.log("❤️ Loading wishlist routes...");
   const wishlistRoutes = require('./routes/wishlist');
   app.use('/api/wishlist', wishlistRoutes);
-  console.log("Wishlist routes loaded successfully");
+  console.log("✅ Wishlist routes loaded");
 } catch (error) {
-  console.error("Error loading wishlist routes:", error.message);
+  console.error("❌ Error loading wishlist routes:", error.message);
 }
 
 try {
-  console.log("Loading order routes...");
+  console.log("📋 Loading order routes...");
   const orderRoutes = require('./routes/orders');
   app.use('/api/orders', orderRoutes);
-  console.log("Order routes loaded successfully");
+  console.log("✅ Order routes loaded");
 } catch (error) {
-  console.error("Error loading order routes:", error.message);
+  console.error("❌ Error loading order routes:", error.message);
 }
 
 try {
-  console.log("Loading user routes...");
+  console.log("👥 Loading user routes...");
   const userRoutes = require('./routes/users');
   app.use('/api/users', userRoutes);
-  console.log("User routes loaded successfully");
+  console.log("✅ User routes loaded");
 } catch (error) {
-  console.error("Error loading user routes:", error.message);
+  console.error("❌ Error loading user routes:", error.message);
 }
 
 try {
-  console.log("Loading contact routes...");
+  console.log("📧 Loading contact routes...");
   const contactRoutes = require('./routes/contact');
   app.use('/api/contact', contactRoutes);
-  console.log("Contact routes loaded successfully");
+  console.log("✅ Contact routes loaded");
 } catch (error) {
-  console.error("Error loading contact routes:", error.message);
+  console.error("❌ Error loading contact routes:", error.message);
 }
 
-// 🔥 NEW: Address routes
 try {
-  console.log("Loading address routes...");
+  console.log("🏠 Loading address routes...");
   const addressRoutes = require('./routes/address');
   app.use('/api/address', addressRoutes);
-  console.log("Address routes loaded successfully");
+  console.log("✅ Address routes loaded");
 } catch (error) {
-  console.error("Error loading address routes:", error.message);
+  console.error("❌ Error loading address routes:", error.message);
 }
 
-try {
-  console.log("Loading order routes...");
-  const orderRoutes = require('./routes/orders');
-  app.use('/api/orders', orderRoutes);
-  console.log("Order routes loaded successfully");
-} catch (error) {
-  console.error("Error loading order routes:", error.message);
-}
+console.log("🎯 All routes registered successfully!");
 
-try {
-  console.log("Loading user routes...");
-  const userRoutes = require('./routes/users');
-  app.use('/api/users', userRoutes);
-  console.log("User routes loaded successfully");
-} catch (error) {
-  console.error("Error loading user routes:", error.message);
-}
 
-try {
-  console.log("Loading contact routes...");
-  const contactRoutes = require('./routes/contact');
-  app.use('/api/contact', contactRoutes);
-  console.log("Contact routes loaded successfully");
-} catch (error) {
-  console.error("Error loading contact routes:", error.message);
-}
 
-// 404 handler
+// 404 handler (MUST come after all route registrations)
 app.use((req, res) => {
+  console.log(`❌ 404 - Route not found: ${req.method} ${req.path}`);
   res.status(404).json({ 
     success: false, 
-    message: `Route ${req.method} ${req.path} not found` 
+    message: `Route ${req.method} ${req.path} not found`,
+    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders']
   });
 });
 
-app.use('/api/orders', orderRoutes);
-
-// Error handling middleware
+// Error handling middleware (LAST)
 app.use((err, req, res, next) => {
-  console.error('Server Error:', err.stack);
+  console.error('💥 Server Error:', err.stack);
   res.status(500).json({ 
     success: false,
     message: 'Something went wrong!',
@@ -173,8 +157,10 @@ app.use((err, req, res, next) => {
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-  console.log(`Health check available at: http://localhost:${PORT}/health`);
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`🏥 Health check: http://localhost:${PORT}/health`);
+  console.log(`👑 Admin login: http://localhost:${PORT}/api/admin/simple-login`);
+  console.log(`👤 Auth routes: http://localhost:${PORT}/api/auth/`);
 });
 
 module.exports = app;

@@ -91,7 +91,7 @@ router.post('/simple-login', (req, res) => {
         message: 'Password is required'
       });
     }
-    const adminPassword = process.env.ADMIN_PASSWORD || 'Gaurav007';
+    const adminPassword = process.env.ADMIN_PASSWORD;
     if (password === adminPassword) {
       // Here: create a JWT!
       const token = jwt.sign(

@@ -750,7 +750,7 @@ async function sendAdminVerificationNotification(order) {
     console.log(`📧 Admin notification needed for order ${order.orderNumber}`);
 
     // Send to admin email (you can set this in environment variables)
-    const adminEmail = process.env.ADMIN_EMAIL || "admin@yourstore.com";
+    const adminEmail = process.env.ADMIN_EMAIL;
 
     await sendOrderNotificationEmail(adminEmail, "admin_payment_verification", {
       orderNumber: order.orderNumber,

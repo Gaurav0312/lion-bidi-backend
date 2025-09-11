@@ -64,7 +64,7 @@ const Admin = mongoose.model('Admin', adminSchema);
 async function createFirstAdmin() {
   try {
     // Connect to MongoDB
-    await mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/your-database');
+    await mongoose.connect(process.env.MONGODB_URI);
     console.log('Connected to MongoDB');
 
     // Check if any admin exists

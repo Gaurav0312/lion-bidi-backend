@@ -1,4 +1,4 @@
-// routes/orders.js - Fixed with proper verification system
+//routes/orders.js
 const express = require("express");
 const router = express.Router();
 const Order = require("../models/Order");
@@ -275,6 +275,126 @@ router.post("/create", auth, async (req, res) => {
       success: false,
       message: "Failed to create order. Please try again.",
       error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+});
+
+// @desc    Delete order (only for pending, cancelled, or payment_failed orders)
+// @route   DELETE /api/orders/:orderId
+// @access  Private
+router.delete("/:orderId", auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    
+    console.log("🗑️ Delete order request:", {
+      orderId,
+      userId: req.user._id
+    });
+
+    // Find the order and verify it exists
+    const order = await Order.findById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // Verify order belongs to authenticated user
+    if (order.userId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({
+        success: false,
+        message: "Access denied. You can only delete your own orders."
+      });
+    }
+
+    // Define which order statuses can be deleted
+    const deletableStatuses = ['pending', 'payment_failed', 'cancelled'];
+    
+    if (!deletableStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot delete order with status '${order.status}'. Only orders with status 'pending', 'payment_failed', or 'cancelled' can be deleted.`
+      });
+    }
+
+    // Additional check for payment status
+    if (order.payment && 
+        ['verified', 'pending_verification'].includes(order.payment.paymentStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete order with verified or pending verification payment status."
+      });
+    }
+
+    // Store order details for logging before deletion
+    const orderNumber = order.orderNumber;
+    const customerName = order.shippingAddress?.name || 'Unknown';
+    
+    // Delete the order
+    await Order.findByIdAndDelete(orderId);
+    
+    // Optional: Remove order from user's orders array if you maintain one
+    try {
+      const user = await User.findById(req.user._id);
+      if (user && Array.isArray(user.orders)) {
+        user.orders = user.orders.filter(id => id.toString() !== orderId);
+        await user.save();
+        console.log("Order removed from user's orders array");
+      }
+    } catch (userUpdateError) {
+      console.log("Note: Could not update user orders array:", userUpdateError.message);
+      // Don't fail the deletion if user update fails
+    }
+
+    // Optional: Send admin notification about deleted order
+    try {
+      if (process.env.ADMIN_EMAIL && typeof sendOrderNotificationEmail === 'function') {
+        await sendOrderNotificationEmail(
+          process.env.ADMIN_EMAIL,
+          'admin_order_deleted',
+          {
+            orderNumber: orderNumber,
+            customerName: customerName,
+            customerEmail: req.user.email || 'Unknown',
+            deletedAt: new Date(),
+            deletedBy: req.user._id
+          }
+        );
+        console.log("Admin notification sent for deleted order");
+      }
+    } catch (emailError) {
+      console.log("Note: Could not send admin notification for deletion:", emailError.message);
+      // Don't fail the deletion if email fails
+    }
+
+    console.log(`✅ Order deleted successfully: ${orderNumber} by user ${req.user._id}`);
+
+    res.json({
+      success: true,
+      message: "Order deleted successfully",
+      deletedOrder: {
+        id: orderId,
+        orderNumber: orderNumber
+      }
+    });
+
+  } catch (error) {
+    console.error("❌ Error deleting order:", error);
+    
+    // Handle specific MongoDB errors
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid order ID format"
+      });
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete order. Please try again.",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
     });
   }
 });

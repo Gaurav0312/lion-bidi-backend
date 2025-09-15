@@ -1,4 +1,4 @@
-// server.js - FIXED VERSION
+//server.js
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -9,7 +9,7 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: ['http://localhost:3000', 'http://10.86.81.51:3000','https://lionbidi.vercel.app','https://lionbidi.shop'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'admin-key', 'x-admin-key']

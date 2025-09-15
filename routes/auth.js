@@ -7,13 +7,13 @@ const auth = require("../middleware/auth");
 const { OAuth2Client } = require('google-auth-library');
 const { generateOTP, sendEmailOTP } = require("../utils/emailService");
 const bcrypt = require("bcryptjs");
-const axios = require('axios'); // Add this import - it's missing!
+const axios = require('axios');
 
 
 
 
-// Google OAuth callback handler - Add this route to your existing auth.js
-// Fixed Google OAuth callback handler - Replace the problematic route in your routes/auth.js
+// Google OAuth callback handler
+// Fixed Google OAuth callback handler
 
 router.post('/google/callback', async (req, res) => {
   try {

@@ -1,4 +1,4 @@
-// models/User.js - Fixed and optimized version
+//models/User.js
 const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -219,7 +219,7 @@ userSchema.methods.addOrUpdateCartItem = async function (productId, qty = 1, pro
       productId: productId,
       name: product.name,
       price: unitPrice,
-      image: product.image || "/api/placeholder/150/150",
+      image: product.image,
       quantity: maxQuantity,
       totalPrice: unitPrice * maxQuantity,
       addedAt: new Date(),

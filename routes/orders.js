@@ -12,18 +12,22 @@ const nodemailer = require("nodemailer");
 // Get pending payment verifications (Admin only)
 router.get('/admin/pending-verifications', adminAuth, async (req, res) => {
   try {
+    console.log('✅ Admin requesting pending verifications');
+    
     const pendingOrders = await Order.find({
       'payment.paymentStatus': 'pending_verification'
     })
-   
+    .populate('userId', 'name email') // Populate user data
     .sort({ 'payment.submittedAt': -1 });
+
+    console.log(`📊 Found ${pendingOrders.length} pending verifications`);
 
     res.json({
       success: true,
       orders: pendingOrders
     });
   } catch (error) {
-    console.error('Error fetching pending verifications:', error);
+    console.error('❌ Error fetching pending verifications:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch pending verifications'
@@ -545,13 +549,12 @@ router.post("/:orderId/confirm-payment", auth, async (req, res) => {
 // @desc    Admin route to verify payments
 // @route   POST /api/orders/:orderId/admin/verify-payment
 // @access  Private (Admin only)
-router.post("/:orderId/admin/verify-payment", async (req, res) => {
+router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
   try {
     const { orderId } = req.params;
     const { verified, notes } = req.body;
 
-    // TODO: Add proper admin authentication middleware here
-    // For now, this is a placeholder - you should implement admin auth
+    console.log(`🔍 Admin verifying payment for order: ${orderId}`);
 
     const order = await Order.findById(orderId);
     if (!order) {
@@ -561,34 +564,29 @@ router.post("/:orderId/admin/verify-payment", async (req, res) => {
       });
     }
 
-    // Use the model method to verify payment
-    await order.verifyPayment(verified, {
-      notes: notes || "",
-      adminId: null, // TODO: Set actual admin ID when admin auth is implemented
-      paymentDate: new Date(),
-    });
+    // Update payment status
+    order.payment.paymentStatus = verified ? 'verified' : 'rejected';
+    order.payment.verificationDate = new Date();
+    order.payment.verificationNotes = notes || '';
+    order.payment.verifiedBy = req.admin.id || req.admin.username;
 
     if (verified) {
-      // Send confirmation email to customer
-      await sendCustomerConfirmationEmail(order);
-    } else {
-      // Send failure email to customer
-      await sendCustomerPaymentFailedEmail(order);
+      order.status = 'confirmed';
+      order.confirmedAt = new Date();
     }
 
-    console.log(
-      `Payment ${verified ? "verified" : "rejected"} for order:`,
-      order.orderNumber
-    );
+    await order.save();
+
+    console.log(`✅ Payment ${verified ? 'verified' : 'rejected'} for order: ${order.orderNumber}`);
 
     res.json({
       success: true,
       message: verified
         ? "Payment verified successfully"
-        : "Payment verification failed",
+        : "Payment verification rejected",
     });
   } catch (error) {
-    console.error("Error verifying payment:", error);
+    console.error("❌ Error verifying payment:", error);
     res.status(500).json({
       success: false,
       message: "Failed to verify payment",

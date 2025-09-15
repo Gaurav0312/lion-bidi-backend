@@ -4,50 +4,44 @@ const router = express.Router();
 const Order = require("../models/Order");
 const User = require("../models/User");
 const auth = require("../middleware/auth");
-const adminAuth = require('../middleware/adminAuth');
+const adminAuth = require("../middleware/adminAuth");
 const { sendOrderNotificationEmail } = require("../utils/emailService");
 const nodemailer = require("nodemailer");
 
-
 // Get pending payment verifications (Admin only)
-router.get('/admin/pending-verifications', adminAuth, async (req, res) => {
+router.get("/admin/pending-verifications", adminAuth, async (req, res) => {
   try {
-    console.log('✅ Admin requesting pending verifications');
-    
+    console.log("✅ Admin requesting pending verifications");
+
     const pendingOrders = await Order.find({
-      'payment.paymentStatus': 'pending_verification' // ✅ Correct field name
+      "payment.paymentStatus": "pending_verification",
     })
-    .populate('userId', 'name email phone') // ✅ Make sure userId is populated
-    .sort({ 'payment.submittedAt': -1 });
+      .populate("userId", "name email phone") // Populate user data
+      .sort({ "payment.submittedAt": -1 });
+
+    console.log(`📊 Found ${pendingOrders.length} pending verifications`);
 
     // Transform the data to match frontend expectations
-    const transformedOrders = pendingOrders.map(order => ({
+    const transformedOrders = pendingOrders.map((order) => ({
       ...order.toObject(),
       user: order.userId, // ✅ Map userId to user for frontend compatibility
       orderNumber: order.orderNumber,
       orderDate: order.orderDate || order.createdAt,
-      payment: {
-        ...order.payment,
-        status: order.payment.paymentStatus // ✅ Add status field for compatibility
-      }
     }));
-
-    console.log(`📊 Found ${transformedOrders.length} pending verifications`);
 
     res.json({
       success: true,
-      orders: transformedOrders
+      orders: transformedOrders,
     });
   } catch (error) {
-    console.error('❌ Error fetching pending verifications:', error);
+    console.error("❌ Error fetching pending verifications:", error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch pending verifications'
+      message: "Failed to fetch pending verifications",
+      error: error.message,
     });
   }
 });
-
-
 
 // @desc    Create new order from cart/checkout
 // @route   POST /api/orders/create
@@ -203,29 +197,32 @@ router.post("/create", auth, async (req, res) => {
     }
 
     try {
-      const { sendOrderNotificationEmail } = require('../utils/emailService');
-      
+      const { sendOrderNotificationEmail } = require("../utils/emailService");
+
       // Send admin notification email
       await sendOrderNotificationEmail(
         process.env.ADMIN_EMAIL || process.env.EMAIL_USER, // Admin email
-        'admin_new_order',
+        "admin_new_order",
         {
           orderNumber: order.orderNumber,
           customerName: order.shippingAddress.name,
           customerEmail: order.shippingAddress.email,
           amount: order.total,
-          transactionId: 'Pending verification',
+          transactionId: "Pending verification",
           orderDate: order.orderDate || order.createdAt,
-          items: order.items.map(item => ({
+          items: order.items.map((item) => ({
             name: item.name,
             quantity: item.quantity,
-            price: item.price
-          }))
+            price: item.price,
+          })),
         }
       );
-      console.log('✅ Admin notification email sent successfully');
+      console.log("✅ Admin notification email sent successfully");
     } catch (emailError) {
-      console.error('❌ Failed to send admin notification email:', emailError.message);
+      console.error(
+        "❌ Failed to send admin notification email:",
+        emailError.message
+      );
       // Don't fail the order creation if email fails
     }
 
@@ -301,19 +298,19 @@ router.post("/create", auth, async (req, res) => {
 router.delete("/:orderId", auth, async (req, res) => {
   try {
     const { orderId } = req.params;
-    
+
     console.log("🗑️ Delete order request:", {
       orderId,
-      userId: req.user._id
+      userId: req.user._id,
     });
 
     // Find the order and verify it exists
     const order = await Order.findById(orderId);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
@@ -321,96 +318,109 @@ router.delete("/:orderId", auth, async (req, res) => {
     if (order.userId.toString() !== req.user._id.toString()) {
       return res.status(403).json({
         success: false,
-        message: "Access denied. You can only delete your own orders."
+        message: "Access denied. You can only delete your own orders.",
       });
     }
 
     // Define which order statuses can be deleted
-    const deletableStatuses = ['pending', 'payment_failed', 'cancelled'];
-    
+    const deletableStatuses = ["pending", "payment_failed", "cancelled"];
+
     if (!deletableStatuses.includes(order.status)) {
       return res.status(400).json({
         success: false,
-        message: `Cannot delete order with status '${order.status}'. Only orders with status 'pending', 'payment_failed', or 'cancelled' can be deleted.`
+        message: `Cannot delete order with status '${order.status}'. Only orders with status 'pending', 'payment_failed', or 'cancelled' can be deleted.`,
       });
     }
 
     // Additional check for payment status
-    if (order.payment && 
-        ['verified', 'pending_verification'].includes(order.payment.paymentStatus)) {
+    if (
+      order.payment &&
+      ["verified", "pending_verification"].includes(order.payment.paymentStatus)
+    ) {
       return res.status(400).json({
         success: false,
-        message: "Cannot delete order with verified or pending verification payment status."
+        message:
+          "Cannot delete order with verified or pending verification payment status.",
       });
     }
 
     // Store order details for logging before deletion
     const orderNumber = order.orderNumber;
-    const customerName = order.shippingAddress?.name || 'Unknown';
-    
+    const customerName = order.shippingAddress?.name || "Unknown";
+
     // Delete the order
     await Order.findByIdAndDelete(orderId);
-    
+
     // Optional: Remove order from user's orders array if you maintain one
     try {
       const user = await User.findById(req.user._id);
       if (user && Array.isArray(user.orders)) {
-        user.orders = user.orders.filter(id => id.toString() !== orderId);
+        user.orders = user.orders.filter((id) => id.toString() !== orderId);
         await user.save();
         console.log("Order removed from user's orders array");
       }
     } catch (userUpdateError) {
-      console.log("Note: Could not update user orders array:", userUpdateError.message);
+      console.log(
+        "Note: Could not update user orders array:",
+        userUpdateError.message
+      );
       // Don't fail the deletion if user update fails
     }
 
     // Optional: Send admin notification about deleted order
     try {
-      if (process.env.ADMIN_EMAIL && typeof sendOrderNotificationEmail === 'function') {
+      if (
+        process.env.ADMIN_EMAIL &&
+        typeof sendOrderNotificationEmail === "function"
+      ) {
         await sendOrderNotificationEmail(
           process.env.ADMIN_EMAIL,
-          'admin_order_deleted',
+          "admin_order_deleted",
           {
             orderNumber: orderNumber,
             customerName: customerName,
-            customerEmail: req.user.email || 'Unknown',
+            customerEmail: req.user.email || "Unknown",
             deletedAt: new Date(),
-            deletedBy: req.user._id
+            deletedBy: req.user._id,
           }
         );
         console.log("Admin notification sent for deleted order");
       }
     } catch (emailError) {
-      console.log("Note: Could not send admin notification for deletion:", emailError.message);
+      console.log(
+        "Note: Could not send admin notification for deletion:",
+        emailError.message
+      );
       // Don't fail the deletion if email fails
     }
 
-    console.log(`✅ Order deleted successfully: ${orderNumber} by user ${req.user._id}`);
+    console.log(
+      `✅ Order deleted successfully: ${orderNumber} by user ${req.user._id}`
+    );
 
     res.json({
       success: true,
       message: "Order deleted successfully",
       deletedOrder: {
         id: orderId,
-        orderNumber: orderNumber
-      }
+        orderNumber: orderNumber,
+      },
     });
-
   } catch (error) {
     console.error("❌ Error deleting order:", error);
-    
+
     // Handle specific MongoDB errors
-    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+    if (error.name === "CastError" && error.kind === "ObjectId") {
       return res.status(400).json({
         success: false,
-        message: "Invalid order ID format"
+        message: "Invalid order ID format",
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: "Failed to delete order. Please try again.",
-      error: process.env.NODE_ENV === "development" ? error.message : undefined
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
     });
   }
 });
@@ -577,19 +587,23 @@ router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
     }
 
     // Update payment status
-    order.payment.paymentStatus = verified ? 'verified' : 'rejected';
+    order.payment.paymentStatus = verified ? "verified" : "rejected";
     order.payment.verificationDate = new Date();
-    order.payment.verificationNotes = notes || '';
+    order.payment.verificationNotes = notes || "";
     order.payment.verifiedBy = req.admin.id || req.admin.username;
 
     if (verified) {
-      order.status = 'confirmed';
+      order.status = "confirmed";
       order.confirmedAt = new Date();
     }
 
     await order.save();
 
-    console.log(`✅ Payment ${verified ? 'verified' : 'rejected'} for order: ${order.orderNumber}`);
+    console.log(
+      `✅ Payment ${verified ? "verified" : "rejected"} for order: ${
+        order.orderNumber
+      }`
+    );
 
     res.json({
       success: true,
@@ -609,29 +623,29 @@ router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
 // @desc    Get pending payments for admin
 // @route   GET /api/orders/admin/pending-verifications
 // @access  Private (Admin only)
-router.get("/admin/pending-verifications", async (req, res) => {
-  try {
-    // TODO: Add proper admin authentication middleware
+// router.get("/admin/pending-verifications", async (req, res) => {
+//   try {
+//     // TODO: Add proper admin authentication middleware
 
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+//     const page = parseInt(req.query.page) || 1;
+//     const limit = parseInt(req.query.limit) || 50;
 
-    // Use the model method to find pending verifications
-    const pendingOrders = await Order.findPendingVerifications({ page, limit });
+//     // Use the model method to find pending verifications
+//     const pendingOrders = await Order.findPendingVerifications({ page, limit });
 
-    res.json({
-      success: true,
-      orders: pendingOrders,
-      count: pendingOrders.length,
-    });
-  } catch (error) {
-    console.error("Error fetching pending verifications:", error);
-    res.status(500).json({
-      success: false,
-      message: "Failed to fetch pending verifications",
-    });
-  }
-});
+//     res.json({
+//       success: true,
+//       orders: pendingOrders,
+//       count: pendingOrders.length,
+//     });
+//   } catch (error) {
+//     console.error("Error fetching pending verifications:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: "Failed to fetch pending verifications",
+//     });
+//   }
+// });
 
 // @desc    Get user's orders
 // @route   GET /api/orders

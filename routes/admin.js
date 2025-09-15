@@ -277,7 +277,7 @@ router.get('/dashboard', adminAuth, async (req, res) => {
     // Fetch stats
     const totalOrders = await Order.countDocuments();
     const pendingPayments = await Order.countDocuments({ 
-      'payment.status': { $in: ['pending_verification', 'submitted'] }
+      'payment.paymentStatus': { $in: ['pending_verification', 'submitted'] }
     });
     
     const totalUsers = await User.countDocuments();
@@ -308,7 +308,7 @@ router.get('/dashboard', adminAuth, async (req, res) => {
 
     // Pending verifications
     const pendingVerifications = await Order.find({
-      'payment.status': { $in: ['pending_verification', 'submitted'] }
+      'payment.paymentStatus': { $in: ['pending_verification', 'submitted'] }
     })
       .populate('user', 'name email')
       .sort({ 'payment.submittedAt': -1 })

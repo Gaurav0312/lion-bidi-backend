@@ -311,7 +311,7 @@ const getOrderEmailTemplate = (type, data) => {
     shippingAddress: data?.shippingAddress || {},
     trackingUrl: data?.trackingUrl || "#",
     retryUrl: data?.retryUrl || "#",
-    reason: data?.reason || "Unknown reason"
+    reason: data?.reason || "Unknown reason",
   };
 
   const templates = {
@@ -354,19 +354,32 @@ const getOrderEmailTemplate = (type, data) => {
                 <p><strong>Customer:</strong> ${safeData.customerName}</p>
                 <p><strong>Email:</strong> ${safeData.customerEmail}</p>
                 <p><strong>Amount:</strong> ₹${safeData.amount.toFixed(2)}</p>
-                <p><strong>Transaction ID:</strong> ${safeData.transactionId}</p>
-                <p><strong>Order Date:</strong> ${new Date(safeData.orderDate).toLocaleString()}</p>
+                <p><strong>Transaction ID:</strong> ${
+                  safeData.transactionId
+                }</p>
+                <p><strong>Order Date:</strong> ${new Date(
+                  safeData.orderDate
+                ).toLocaleString()}</p>
               </div>
               
               <div class="items">
                 <h3>Items Ordered</h3>
-                ${safeData.items.length > 0 
-                  ? safeData.items.map(item => `
+                ${
+                  safeData.items.length > 0
+                    ? safeData.items
+                        .map(
+                          (item) => `
                     <div class="item">
-                      <strong>${item?.name || 'Unknown Item'}</strong> × ${item?.quantity || 0} = ₹${((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}
+                      <strong>${item?.name || "Unknown Item"}</strong> × ${
+                            item?.quantity || 0
+                          } = ₹${(
+                            (item?.price || 0) * (item?.quantity || 0)
+                          ).toFixed(2)}
                     </div>
-                  `).join("")
-                  : '<div class="item">No items found</div>'
+                  `
+                        )
+                        .join("")
+                    : '<div class="item">No items found</div>'
                 }
               </div>
             </div>
@@ -420,25 +433,40 @@ const getOrderEmailTemplate = (type, data) => {
                 <h3>📋 Order Summary</h3>
                 <p><strong>Customer:</strong> ${safeData.customerName}</p>
                 <p><strong>Email:</strong> ${safeData.customerEmail}</p>
-                <p><strong>Order Date:</strong> ${new Date(safeData.orderDate).toLocaleString("en-IN")}</p>
-                <p><strong>Total Amount:</strong> ₹${safeData.amount.toFixed(2)}</p>
+                <p><strong>Order Date:</strong> ${new Date(
+                  safeData.orderDate
+                ).toLocaleString("en-IN")}</p>
+                <p><strong>Total Amount:</strong> ₹${safeData.amount.toFixed(
+                  2
+                )}</p>
                 
                 <div class="items">
                   <h4>Items Ordered:</h4>
-                  ${safeData.items.length > 0
-                    ? safeData.items.map(item => `
+                  ${
+                    safeData.items.length > 0
+                      ? safeData.items
+                          .map(
+                            (item) => `
                       <div class="item">
-                        <span><strong>${item?.name || 'Unknown Item'}</strong> × ${item?.quantity || 0}</span>
-                        <span>₹${((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}</span>
+                        <span><strong>${
+                          item?.name || "Unknown Item"
+                        }</strong> × ${item?.quantity || 0}</span>
+                        <span>₹${(
+                          (item?.price || 0) * (item?.quantity || 0)
+                        ).toFixed(2)}</span>
                       </div>
-                    `).join("")
-                    : '<p>No items found</p>'
+                    `
+                          )
+                          .join("")
+                      : "<p>No items found</p>"
                   }
                 </div>
               </div>
               
               <div style="text-align: center;">
-                <a href="${process.env.ADMIN_PANEL_URL || "http://localhost:3000"}/admin/payment-verification" 
+                <a href="${
+                  process.env.ADMIN_PANEL_URL || "http://localhost:3000"
+                }/admin/payment-verification" 
                    class="action-button">
                   🚀 Go to Admin Panel
                 </a>
@@ -457,6 +485,69 @@ const getOrderEmailTemplate = (type, data) => {
         </body>
         </html>
       `,
+    },
+
+    // Add this template to your existing getOrderEmailTemplate function in the templates object
+
+    admin_order_deleted: {
+      subject: `🗑️ Order Deleted - ${safeData.orderNumber} | Lion Bidi Admin Alert`,
+      html: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Order Deleted - Lion Bidi Admin</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .header { background: linear-gradient(135deg, #dc2626, #7f1d1d); padding: 30px 20px; text-align: center; color: white; }
+        .content { padding: 30px; }
+        .alert { background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+        .order-details { background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .footer { background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🗑️ Order Deletion Alert</h1>
+          <p>Lion Bidi Admin Notification</p>
+        </div>
+        
+        <div class="content">
+          <div class="alert">
+            <h2>⚠️ Order Deleted</h2>
+            <p>A customer has deleted their order.</p>
+            <p><strong>Order: ${safeData.orderNumber}</strong></p>
+          </div>
+          
+          <div class="order-details">
+            <h3>📋 Deletion Details</h3>
+            <p><strong>Customer:</strong> ${safeData.customerName}</p>
+            <p><strong>Email:</strong> ${safeData.customerEmail}</p>
+            <p><strong>Order Number:</strong> ${safeData.orderNumber}</p>
+            <p><strong>Deleted At:</strong> ${
+              safeData.deletedAt
+                ? new Date(safeData.deletedAt).toLocaleString("en-IN")
+                : "Unknown"
+            }</p>
+            <p><strong>User ID:</strong> ${safeData.deletedBy || "Unknown"}</p>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 14px; text-align: center;">
+            This order was deleted by the customer and has been removed from the system.
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p><strong>© 2025 Lion Bidi</strong> - Admin Notification System</p>
+          <p>This is an automated notification. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
     },
 
     order_confirmed: {
@@ -497,33 +588,56 @@ const getOrderEmailTemplate = (type, data) => {
               <div class="order-details">
                 <h3>Order Summary</h3>
                 <p><strong>Order Number:</strong> ${safeData.orderNumber}</p>
-                <p><strong>Order Date:</strong> ${new Date(safeData.orderDate).toLocaleString()}</p>
-                <p><strong>Total Amount:</strong> ₹${safeData.amount.toFixed(2)}</p>
+                <p><strong>Order Date:</strong> ${new Date(
+                  safeData.orderDate
+                ).toLocaleString()}</p>
+                <p><strong>Total Amount:</strong> ₹${safeData.amount.toFixed(
+                  2
+                )}</p>
               </div>
               
               <div class="items">
                 <h3>Items Ordered</h3>
-                ${safeData.items.length > 0
-                  ? safeData.items.map(item => `
+                ${
+                  safeData.items.length > 0
+                    ? safeData.items
+                        .map(
+                          (item) => `
                     <div class="item">
-                      <strong>${item?.name || 'Unknown Item'}</strong><br>
-                      Quantity: ${item?.quantity || 0} × ₹${(item?.price || 0).toFixed(2)} = ₹${((item?.price || 0) * (item?.quantity || 0)).toFixed(2)}
+                      <strong>${item?.name || "Unknown Item"}</strong><br>
+                      Quantity: ${item?.quantity || 0} × ₹${(
+                            item?.price || 0
+                          ).toFixed(2)} = ₹${(
+                            (item?.price || 0) * (item?.quantity || 0)
+                          ).toFixed(2)}
                     </div>
-                  `).join("")
-                  : '<div class="item">No items found</div>'
+                  `
+                        )
+                        .join("")
+                    : '<div class="item">No items found</div>'
                 }
               </div>
               
               <div class="shipping-info">
                 <h3>📦 Shipping Address</h3>
-                <p><strong>${safeData.shippingAddress?.name || 'Unknown'}</strong></p>
-                <p>${safeData.shippingAddress?.street || 'Address not provided'}</p>
-                <p>${safeData.shippingAddress?.city || 'City'}, ${safeData.shippingAddress?.state || 'State'} - ${safeData.shippingAddress?.zipCode || 'ZIP'}</p>
-                <p>Phone: ${safeData.shippingAddress?.phone || 'Not provided'}</p>
+                <p><strong>${
+                  safeData.shippingAddress?.name || "Unknown"
+                }</strong></p>
+                <p>${
+                  safeData.shippingAddress?.street || "Address not provided"
+                }</p>
+                <p>${safeData.shippingAddress?.city || "City"}, ${
+        safeData.shippingAddress?.state || "State"
+      } - ${safeData.shippingAddress?.zipCode || "ZIP"}</p>
+                <p>Phone: ${
+                  safeData.shippingAddress?.phone || "Not provided"
+                }</p>
               </div>
               
               <div style="text-align: center;">
-                <a href="${safeData.trackingUrl}" class="track-button">Track Your Order</a>
+                <a href="${
+                  safeData.trackingUrl
+                }" class="track-button">Track Your Order</a>
               </div>
               
               <p><strong>Estimated Delivery:</strong> 5-7 business days</p>
@@ -568,7 +682,9 @@ const getOrderEmailTemplate = (type, data) => {
             <div class="content">
               <div class="error">
                 <h3>Payment Verification Failed</h3>
-                <p>We were unable to verify your payment for order ${safeData.orderNumber}.</p>
+                <p>We were unable to verify your payment for order ${
+                  safeData.orderNumber
+                }.</p>
                 <p><strong>Reason:</strong> ${safeData.reason}</p>
               </div>
               
@@ -581,7 +697,9 @@ const getOrderEmailTemplate = (type, data) => {
               <p>Please try submitting your payment details again or contact our support team for assistance.</p>
               
               <div style="text-align: center;">
-                <a href="${safeData.retryUrl}" class="retry-button">Retry Payment</a>
+                <a href="${
+                  safeData.retryUrl
+                }" class="retry-button">Retry Payment</a>
               </div>
             </div>
             <div class="footer">

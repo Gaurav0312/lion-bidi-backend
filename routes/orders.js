@@ -15,16 +15,28 @@ router.get('/admin/pending-verifications', adminAuth, async (req, res) => {
     console.log('✅ Admin requesting pending verifications');
     
     const pendingOrders = await Order.find({
-      'payment.paymentStatus': 'pending_verification'
+      'payment.paymentStatus': 'pending_verification' // ✅ Correct field name
     })
-    .populate('userId', 'name email') // Populate user data
+    .populate('userId', 'name email phone') // ✅ Make sure userId is populated
     .sort({ 'payment.submittedAt': -1 });
 
-    console.log(`📊 Found ${pendingOrders.length} pending verifications`);
+    // Transform the data to match frontend expectations
+    const transformedOrders = pendingOrders.map(order => ({
+      ...order.toObject(),
+      user: order.userId, // ✅ Map userId to user for frontend compatibility
+      orderNumber: order.orderNumber,
+      orderDate: order.orderDate || order.createdAt,
+      payment: {
+        ...order.payment,
+        status: order.payment.paymentStatus // ✅ Add status field for compatibility
+      }
+    }));
+
+    console.log(`📊 Found ${transformedOrders.length} pending verifications`);
 
     res.json({
       success: true,
-      orders: pendingOrders
+      orders: transformedOrders
     });
   } catch (error) {
     console.error('❌ Error fetching pending verifications:', error);

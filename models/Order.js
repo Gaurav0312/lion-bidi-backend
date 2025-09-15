@@ -1,4 +1,4 @@
-// models/Order.js - Updated with fixes for order creation issues
+//models/Order.js
 const mongoose = require('mongoose');
 
 const orderItemSchema = new mongoose.Schema({

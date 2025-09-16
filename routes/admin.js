@@ -352,25 +352,30 @@ router.get('/orders', adminAuth, async (req, res) => {
 
     if (search) {
       query.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } },
-        { 'user.name': { $regex: search, $options: 'i' } },
-        { 'user.email': { $regex: search, $options: 'i' } }
+        { orderNumber: { $regex: search, $options: 'i' } }
       ];
     }
 
     const orders = await Order.find(query)
-      .populate('user', 'name email')
+      .populate('userId', 'name email phone') // ✅ Fixed: populate userId, not user
       .sort({ orderDate: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
 
     const total = await Order.countDocuments(query);
 
+    // Transform data to match frontend expectations
+    const transformedOrders = orders.map(order => ({
+      ...order.toObject(),
+      user: order.userId, // ✅ Map userId to user for frontend compatibility
+      orderDate: order.orderDate || order.createdAt
+    }));
+
     res.json({
       success: true,
-      orders,
+      orders: transformedOrders,
       pagination: {
-        current: page,
+        current: parseInt(page),
         pages: Math.ceil(total / limit),
         total
       }
@@ -379,7 +384,8 @@ router.get('/orders', adminAuth, async (req, res) => {
     console.error('Orders fetch error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch orders'
+      message: 'Failed to fetch orders',
+      error: error.message
     });
   }
 });
@@ -453,7 +459,7 @@ router.get('/users', adminAuth, async (req, res) => {
     // Add order statistics for each user
     const usersWithStats = await Promise.all(users.map(async (user) => {
       const orderStats = await Order.aggregate([
-        { $match: { user: user._id } },
+        { $match: { userId: user._id } }, // ✅ Fixed: use userId instead of user
         { 
           $group: { 
             _id: null, 
@@ -476,7 +482,7 @@ router.get('/users', adminAuth, async (req, res) => {
       success: true,
       users: usersWithStats,
       pagination: {
-        current: page,
+        current: parseInt(page),
         pages: Math.ceil(total / limit),
         total
       }
@@ -485,7 +491,8 @@ router.get('/users', adminAuth, async (req, res) => {
     console.error('Users fetch error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch users'
+      message: 'Failed to fetch users',
+      error: error.message
     });
   }
 });

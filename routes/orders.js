@@ -425,6 +425,61 @@ router.delete("/:orderId", auth, async (req, res) => {
   }
 });
 
+// @desc    Get all orders (Admin only) - ADD THIS ROUTE
+// @route   GET /api/orders/admin/all
+// @access  Private (Admin only)
+router.get("/admin/all", adminAuth, async (req, res) => {
+  try {
+    console.log("✅ Admin requesting all orders");
+
+    const { page = 1, limit = 50, status, search } = req.query;
+    let query = {};
+    
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+
+    if (search) {
+      query.$or = [
+        { orderNumber: { $regex: search, $options: 'i' } }
+      ];
+    }
+
+    const orders = await Order.find(query)
+      .populate("userId", "name email phone") // ✅ Fixed: populate userId, not user
+      .sort({ orderDate: -1 })
+      .limit(limit * 1)
+      .skip((page - 1) * limit);
+
+    console.log(`📊 Found ${orders.length} orders`);
+
+    // Transform the data to match frontend expectations
+    const transformedOrders = orders.map((order) => ({
+      ...order.toObject(),
+      user: order.userId, // ✅ Map userId to user for frontend compatibility
+      orderNumber: order.orderNumber,
+      orderDate: order.orderDate || order.createdAt,
+    }));
+
+    res.json({
+      success: true,
+      orders: transformedOrders,
+      pagination: {
+        current: parseInt(page),
+        pages: Math.ceil(await Order.countDocuments(query) / limit),
+        total: await Order.countDocuments(query)
+      }
+    });
+  } catch (error) {
+    console.error("❌ Error fetching all orders:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch orders",
+      error: error.message,
+    });
+  }
+});
+
 // @desc    Confirm payment and update order status
 // @route   POST /api/orders/:orderId/confirm-payment
 // @access  Private
@@ -620,32 +675,81 @@ router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
   }
 });
 
-// @desc    Get pending payments for admin
-// @route   GET /api/orders/admin/pending-verifications
+// @desc    Update order status (Admin only) - ADD THIS ROUTE  
+// @route   PUT /api/orders/:orderId/admin/update-status
 // @access  Private (Admin only)
-// router.get("/admin/pending-verifications", async (req, res) => {
-//   try {
-//     // TODO: Add proper admin authentication middleware
+router.put("/:orderId/admin/update-status", adminAuth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { status } = req.body;
 
-//     const page = parseInt(req.query.page) || 1;
-//     const limit = parseInt(req.query.limit) || 50;
+    console.log(`🔄 Admin updating order ${orderId} status to ${status}`);
 
-//     // Use the model method to find pending verifications
-//     const pendingOrders = await Order.findPendingVerifications({ page, limit });
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
 
-//     res.json({
-//       success: true,
-//       orders: pendingOrders,
-//       count: pendingOrders.length,
-//     });
-//   } catch (error) {
-//     console.error("Error fetching pending verifications:", error);
-//     res.status(500).json({
-//       success: false,
-//       message: "Failed to fetch pending verifications",
-//     });
-//   }
-// });
+    // Validate status
+    const validStatuses = ['pending', 'pending_payment', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status"
+      });
+    }
+
+    // Update order status
+    order.status = status;
+    
+    // Update specific timestamp fields based on status
+    switch(status) {
+      case 'confirmed':
+        order.confirmedAt = new Date();
+        break;
+      case 'processing':
+        order.processingAt = new Date();
+        break;
+      case 'shipped':
+        order.shippedAt = new Date();
+        break;
+      case 'delivered':
+        order.deliveredAt = new Date();
+        break;
+    }
+
+    // Add to status history if the field exists
+    if (!order.statusHistory) {
+      order.statusHistory = [];
+    }
+    order.statusHistory.push({
+      status,
+      updatedBy: req.admin._id || req.admin.username || 'admin',
+      updatedAt: new Date()
+    });
+
+    await order.save();
+
+    console.log(`✅ Order ${order.orderNumber} status updated to ${status}`);
+
+    res.json({
+      success: true,
+      message: "Order status updated successfully",
+      order
+    });
+
+  } catch (error) {
+    console.error("❌ Error updating order status:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update order status",
+      error: error.message
+    });
+  }
+});
 
 // @desc    Get user's orders
 // @route   GET /api/orders

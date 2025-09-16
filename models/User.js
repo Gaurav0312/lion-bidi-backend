@@ -262,8 +262,12 @@ userSchema.methods.clearCart = async function () {
 };
 
 userSchema.methods.getCartItemsCount = function () {
+  if (!this.cart || !Array.isArray(this.cart)) {
+    return 0;
+  }
   return this.cart.reduce((total, item) => total + (item.quantity || 0), 0);
 };
+
 
 userSchema.methods.getCartTotal = function () {
   return this.cart.reduce((total, item) => total + (item.totalPrice || 0), 0);

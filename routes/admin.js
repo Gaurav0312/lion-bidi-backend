@@ -533,6 +533,36 @@ router.put('/users/:userId/toggle-status', adminAuth, async (req, res) => {
   }
 });
 
+router.get('/notifications', adminAuth, async (req, res) => {
+  try {
+    const notifications = [];
+    
+    // Check for urgent pending payments
+    const urgentPayments = await Order.countDocuments({
+      'payment.paymentStatus': 'pending_verification',
+      'payment.submittedAt': { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Older than 24h
+    });
+    
+    if (urgentPayments > 0) {
+      notifications.push({
+        id: 1,
+        type: 'urgent',
+        title: 'Overdue Payments',
+        message: `${urgentPayments} payments overdue for verification`,
+        time: new Date(),
+        action: '/admin/payment-verification'
+      });
+    }
+    
+    res.json({
+      success: true,
+      notifications
+    });
+  } catch (error) {
+    res.json({ success: true, notifications: [] });
+  }
+});
+
 // Settings management
 router.get('/settings', adminAuth, async (req, res) => {
   try {

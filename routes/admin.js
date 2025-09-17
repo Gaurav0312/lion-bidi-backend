@@ -269,71 +269,134 @@ router.get('/dashboard', adminAuth, async (req, res) => {
     const Order = require('../models/Order');
     const User = require('../models/User');
     
+    console.log('📊 Fetching dashboard data...');
+    
     // Get today's date range
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
 
-    // Fetch stats
-    const totalOrders = await Order.countDocuments();
-    const pendingPayments = await Order.countDocuments({ 
-      'payment.paymentStatus': { $in: ['pending_verification', 'submitted'] }
-    });
-    
-    const totalUsers = await User.countDocuments();
-    
-    // Calculate total revenue from confirmed orders
-    const revenueResult = await Order.aggregate([
-      { $match: { status: { $in: ['confirmed', 'shipped', 'delivered'] } } },
-      { $group: { _id: null, total: { $sum: '$total' } } }
+    // Fetch all stats in parallel for better performance
+    const [
+      totalOrders,
+      pendingPayments,
+      totalUsers,
+      verifiedToday,
+      rejectedToday,
+      totalRevenueResult,
+      recentOrders,
+      pendingVerifications
+    ] = await Promise.all([
+      // Total orders count
+      Order.countDocuments({}),
+      
+      // Pending payments count - check both possible statuses
+      Order.countDocuments({ 
+        $or: [
+          { 'payment.paymentStatus': 'pending_verification' },
+          { 'payment.paymentStatus': 'submitted' },
+          { status: 'pending_payment' }
+        ]
+      }),
+      
+      // Total users count
+      User.countDocuments({}),
+      
+      // Verified today count
+      Order.countDocuments({
+        'payment.verificationDate': { $gte: startOfDay, $lt: endOfDay },
+        'payment.verified': true
+      }),
+      
+      // Rejected today count
+      Order.countDocuments({
+        'payment.verificationDate': { $gte: startOfDay, $lt: endOfDay },
+        'payment.verified': false
+      }),
+      
+      // Total revenue from confirmed/delivered orders
+      Order.aggregate([
+        { 
+          $match: { 
+            status: { $in: ['confirmed', 'shipped', 'delivered'] } 
+          } 
+        },
+        { 
+          $group: { 
+            _id: null, 
+            total: { $sum: '$total' } 
+          } 
+        }
+      ]),
+      
+      // Recent orders (last 10)
+      Order.find({})
+        .populate('userId', 'name email phone')
+        .sort({ orderDate: -1, createdAt: -1 })
+        .limit(10)
+        .lean(),
+      
+      // Pending verifications
+      Order.find({
+        $or: [
+          { 'payment.paymentStatus': 'pending_verification' },
+          { 'payment.paymentStatus': 'submitted' }
+        ]
+      })
+        .populate('userId', 'name email phone')
+        .sort({ 'payment.submittedAt': -1, createdAt: -1 })
+        .limit(10)
+        .lean()
     ]);
-    const totalRevenue = revenueResult[0]?.total || 0;
 
-    // Today's verification stats
-    const verifiedToday = await Order.countDocuments({
-      'payment.verificationDate': { $gte: startOfDay, $lt: endOfDay },
-      'payment.verified': true
+    const totalRevenue = totalRevenueResult[0]?.total || 0;
+
+    // Transform the data to match frontend expectations
+    const transformedRecentOrders = recentOrders.map(order => ({
+      ...order,
+      user: order.userId, // Map userId to user for frontend compatibility
+      orderDate: order.orderDate || order.createdAt
+    }));
+
+    const transformedPendingVerifications = pendingVerifications.map(order => ({
+      ...order,
+      user: order.userId, // Map userId to user for frontend compatibility
+    }));
+
+    const dashboardData = {
+      stats: {
+        totalOrders,
+        pendingPayments,
+        totalRevenue,
+        totalUsers,
+        verifiedToday,
+        rejectedToday
+      },
+      recentOrders: transformedRecentOrders,
+      pendingVerifications: transformedPendingVerifications
+    };
+
+    console.log('✅ Dashboard stats:', {
+      totalOrders,
+      pendingPayments,
+      totalRevenue,
+      totalUsers,
+      verifiedToday,
+      rejectedToday,
+      recentOrdersCount: transformedRecentOrders.length,
+      pendingVerificationsCount: transformedPendingVerifications.length
     });
-
-    const rejectedToday = await Order.countDocuments({
-      'payment.verificationDate': { $gte: startOfDay, $lt: endOfDay },
-      'payment.verified': false
-    });
-
-    // Recent orders
-    const recentOrders = await Order.find()
-      .populate('user', 'name email')
-      .sort({ orderDate: -1 })
-      .limit(10);
-
-    // Pending verifications
-    const pendingVerifications = await Order.find({
-      'payment.paymentStatus': { $in: ['pending_verification', 'submitted'] }
-    })
-      .populate('user', 'name email')
-      .sort({ 'payment.submittedAt': -1 })
-      .limit(10);
 
     res.json({
       success: true,
-      data: {
-        stats: {
-          totalOrders,
-          pendingPayments,
-          totalRevenue,
-          totalUsers,
-          verifiedToday,
-          rejectedToday
-        },
-        recentOrders,
-        pendingVerifications
-      }
+      data: dashboardData
     });
   } catch (error) {
-    console.error('Dashboard fetch error:', error);
+    console.error('❌ Dashboard fetch error:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch dashboard data'
+      message: 'Failed to fetch dashboard data',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

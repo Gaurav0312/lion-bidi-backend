@@ -459,7 +459,7 @@ router.get('/users', adminAuth, async (req, res) => {
     // Add order statistics for each user
     const usersWithStats = await Promise.all(users.map(async (user) => {
       const orderStats = await Order.aggregate([
-        { $match: { userId: user._id } }, // ✅ Fixed: use userId instead of user
+        { $match: { userId: user._id } },
         { 
           $group: { 
             _id: null, 

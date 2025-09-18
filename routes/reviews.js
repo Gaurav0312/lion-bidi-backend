@@ -1,10 +1,12 @@
-// routes/reviews.js - IMPROVED VERSION
+// routes/reviews.js - Complete working version
 const express = require('express');
 const router = express.Router();
 
-// Enhanced mock reviews data with more products
+console.log('📋 Reviews routes file loaded successfully');
+
+// Mock reviews data
 const mockReviews = {
-  1: [
+  "1": [
     {
       _id: '1',
       userId: { 
@@ -28,7 +30,7 @@ const mockReviews = {
       rating: 4,
       title: 'Good Product',
       comment: 'Good quality bidi. Fast delivery and nice packaging.',
-      createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 8,
       images: []
@@ -42,13 +44,13 @@ const mockReviews = {
       rating: 5,
       title: 'Best Purchase',
       comment: 'Amazing product! Quick delivery and excellent packaging. Highly recommended.',
-      createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+      createdAt: new Date(Date.now() - 172800000).toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 15,
       images: []
     }
   ],
-  2: [
+  "2": [
     {
       _id: '4',
       userId: { 
@@ -56,9 +58,9 @@ const mockReviews = {
         email: 'anil@example.com' 
       },
       rating: 4,
-      title: 'Good Product',
-      comment: 'Good product, nice packaging. Fast delivery too. Recommended!',
-      createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+      title: 'Good Small Pack',
+      comment: 'Good product, perfect size for trying. Nice packaging and fast delivery!',
+      createdAt: new Date(Date.now() - 172800000).toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 8,
       images: []
@@ -70,72 +72,74 @@ const mockReviews = {
         email: 'mohit@example.com' 
       },
       rating: 5,
-      title: 'Premium Quality',
-      comment: 'Best bidi I\'ve tried. Premium quality at reasonable price.',
-      createdAt: new Date(Date.now() - 259200000).toISOString(), // 3 days ago
-      isVerifiedPurchase: false,
+      title: 'Premium Quality Small Pack',
+      comment: 'Best small pack I\'ve tried. Premium quality at reasonable price. Perfect for occasional use.',
+      createdAt: new Date(Date.now() - 259200000).toISOString(),
+      isVerifiedPurchase: true,
       helpfulVotes: 6,
       images: []
     }
   ]
 };
 
-// Middleware to log all requests to this router
+// Middleware to log requests
 router.use((req, res, next) => {
-  console.log(`📋 Reviews Route: ${req.method} ${req.originalUrl}`, {
-    params: req.params,
-    query: req.query,
-    body: req.method === 'POST' ? req.body : undefined
-  });
+  console.log(`📋 Reviews API: ${req.method} ${req.originalUrl}`);
   next();
+});
+
+// Test route to verify reviews router is working
+router.get('/test', (req, res) => {
+  console.log('🧪 Reviews test route hit');
+  res.json({ 
+    message: 'Reviews routes are working!',
+    timestamp: new Date().toISOString(),
+    availableProducts: Object.keys(mockReviews)
+  });
 });
 
 // GET /api/reviews/product/:productId
 router.get('/product/:productId', (req, res) => {
   try {
     const { productId } = req.params;
-    console.log(`🔍 Fetching reviews for product ID: ${productId}`);
+    console.log(`🔍 Fetching reviews for product: ${productId}`);
     
-    // Convert productId to string for consistent comparison
+    // Convert to string for consistent lookup
     const productKey = productId.toString();
     const productReviews = mockReviews[productKey] || [];
     
     console.log(`📊 Found ${productReviews.length} reviews for product ${productKey}`);
     
     // Calculate rating distribution
-    const ratingCounts = [0, 0, 0, 0, 0]; // Index 0 = 1 star, Index 4 = 5 stars
+    const ratingCounts = [0, 0, 0, 0, 0]; // [1-star, 2-star, 3-star, 4-star, 5-star]
+    
     productReviews.forEach(review => {
       if (review.rating >= 1 && review.rating <= 5) {
         ratingCounts[review.rating - 1]++;
       }
     });
     
-    // Create rating distribution array (5 stars first)
+    // Create rating distribution (5 stars first)
     const ratingDistribution = ratingCounts.map((count, index) => ({
-      _id: index + 1, // Rating value (1-5)
+      _id: index + 1,
       count: count
-    })).reverse(); // Reverse to show 5 stars first
+    })).reverse();
     
-    const responseData = {
+    const response = {
+      success: true,
       reviews: productReviews,
       totalReviews: productReviews.length,
-      ratingDistribution: ratingDistribution,
-      success: true
+      ratingDistribution: ratingDistribution
     };
     
-    console.log(`✅ Sending response:`, {
-      reviewCount: productReviews.length,
-      totalReviews: responseData.totalReviews,
-      distributionLength: ratingDistribution.length
-    });
-    
-    res.status(200).json(responseData);
+    console.log(`✅ Sending ${productReviews.length} reviews for product ${productKey}`);
+    res.json(response);
     
   } catch (error) {
-    console.error('❌ Error fetching reviews:', error);
-    res.status(500).json({ 
+    console.error('❌ Error in GET /product/:productId:', error);
+    res.status(500).json({
       success: false,
-      message: 'Error fetching reviews', 
+      message: 'Error fetching reviews',
       error: error.message,
       reviews: [],
       totalReviews: 0,
@@ -144,43 +148,35 @@ router.get('/product/:productId', (req, res) => {
   }
 });
 
-// POST /api/reviews - Create a new review
+// POST /api/reviews - Create new review
 router.post('/', (req, res) => {
   try {
     const { productId, rating, title, comment } = req.body;
     
-    console.log('📝 Creating new review:', { 
-      productId, 
-      rating, 
-      title: title?.substring(0, 50) + '...' 
-    });
+    console.log('📝 Creating review:', { productId, rating, title });
     
-    // Validate required fields
+    // Validation
     if (!productId || !rating || !title || !comment) {
-      console.log('❌ Validation failed - missing required fields');
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: 'Missing required fields: productId, rating, title, and comment are required',
-        required: ['productId', 'rating', 'title', 'comment'],
-        received: { productId: !!productId, rating: !!rating, title: !!title, comment: !!comment }
+        message: 'Missing required fields',
+        required: ['productId', 'rating', 'title', 'comment']
       });
     }
     
-    // Validate rating range
     if (rating < 1 || rating > 5) {
       return res.status(400).json({
         success: false,
-        message: 'Rating must be between 1 and 5',
-        received: rating
+        message: 'Rating must be between 1 and 5'
       });
     }
     
     // Create new review
     const newReview = {
       _id: `review_${Date.now()}`,
-      userId: { 
-        name: 'Current User', 
-        email: 'user@example.com' 
+      userId: {
+        name: 'Current User',
+        email: 'user@example.com'
       },
       rating: parseInt(rating),
       title: title.trim(),
@@ -191,129 +187,92 @@ router.post('/', (req, res) => {
       images: []
     };
     
-    // Add to mock data (in real app, save to database)
+    // Add to mock data
     const productKey = productId.toString();
     if (!mockReviews[productKey]) {
       mockReviews[productKey] = [];
     }
-    mockReviews[productKey].unshift(newReview); // Add to beginning
+    mockReviews[productKey].unshift(newReview);
     
-    console.log('✅ Review created successfully with ID:', newReview._id);
-    
-    res.status(201).json({ 
+    console.log('✅ Review created successfully');
+    res.status(201).json({
       success: true,
-      message: 'Review created successfully', 
-      review: newReview 
+      message: 'Review created successfully',
+      review: newReview
     });
     
   } catch (error) {
     console.error('❌ Error creating review:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error creating review', 
-      error: error.message 
+      message: 'Error creating review',
+      error: error.message
     });
   }
 });
 
-// POST /api/reviews/:reviewId/helpful - Mark review as helpful
+// POST /api/reviews/:reviewId/helpful - Mark review helpful
 router.post('/:reviewId/helpful', (req, res) => {
   try {
     const { reviewId } = req.params;
-    
     console.log(`👍 Marking review ${reviewId} as helpful`);
     
-    // Find and update the review (in real app, update database)
-    let reviewFound = false;
-    let updatedReview = null;
+    // Find and update review
+    let found = false;
+    let updatedVotes = 0;
     
     for (const productId in mockReviews) {
       const reviewIndex = mockReviews[productId].findIndex(r => r._id === reviewId);
       if (reviewIndex !== -1) {
         mockReviews[productId][reviewIndex].helpfulVotes += 1;
-        updatedReview = mockReviews[productId][reviewIndex];
-        reviewFound = true;
+        updatedVotes = mockReviews[productId][reviewIndex].helpfulVotes;
+        found = true;
         break;
       }
     }
     
-    if (!reviewFound) {
+    if (!found) {
       return res.status(404).json({
         success: false,
-        message: 'Review not found',
-        reviewId
+        message: 'Review not found'
       });
     }
     
-    console.log('✅ Helpful vote updated successfully');
-    res.json({ 
+    console.log('✅ Helpful vote updated');
+    res.json({
       success: true,
-      message: 'Vote updated successfully', 
-      helpfulVotes: updatedReview.helpfulVotes,
-      hasVoted: true
+      message: 'Vote updated successfully',
+      helpfulVotes: updatedVotes
     });
     
   } catch (error) {
     console.error('❌ Error updating helpful vote:', error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: 'Error updating vote', 
-      error: error.message 
+      message: 'Error updating vote',
+      error: error.message
     });
   }
 });
 
-// GET /api/reviews/:reviewId - Get single review
-router.get('/:reviewId', (req, res) => {
-  try {
-    const { reviewId } = req.params;
-    
-    console.log(`🔍 Fetching single review: ${reviewId}`);
-    
-    // Find review in mock data
-    let foundReview = null;
-    for (const productId in mockReviews) {
-      const review = mockReviews[productId].find(r => r._id === reviewId);
-      if (review) {
-        foundReview = review;
-        break;
-      }
-    }
-    
-    if (!foundReview) {
-      return res.status(404).json({ 
-        success: false,
-        message: 'Review not found',
-        reviewId 
-      });
-    }
-    
-    console.log('✅ Review found:', foundReview._id);
-    res.json({ 
-      success: true,
-      review: foundReview 
-    });
-    
-  } catch (error) {
-    console.error('❌ Error fetching review:', error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Error fetching review', 
-      error: error.message 
-    });
-  }
-});
-
-// Health check for this router
+// Health check for reviews
 router.get('/health', (req, res) => {
   const totalReviews = Object.values(mockReviews).reduce((sum, reviews) => sum + reviews.length, 0);
   res.json({
     status: 'OK',
     service: 'Reviews API',
-    timestamp: new Date().toISOString(),
     totalReviews,
-    availableProducts: Object.keys(mockReviews)
+    availableProducts: Object.keys(mockReviews),
+    timestamp: new Date().toISOString()
   });
 });
+
+console.log('📋 Reviews router configured with routes:', [
+  'GET /test',
+  'GET /product/:productId', 
+  'POST /',
+  'POST /:reviewId/helpful',
+  'GET /health'
+]);
 
 module.exports = router;

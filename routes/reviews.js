@@ -1,12 +1,13 @@
-// routes/reviews.js - Enhanced version with all features
+// routes/reviews.js - Enhanced version with corrected user data extraction
 const express = require('express');
 const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken'); // Add this import for JWT handling
 const router = express.Router();
 
 // Import your Review model
 const Review = require('../models/Review');
 
-// Enhanced authentication middleware
+// Enhanced authentication middleware with proper JWT decoding
 const getAuthenticatedUser = (req) => {
   // Check if user data is passed in the request body (for testing without JWT)
   if (req.body.currentUser && req.body.currentUser._id) {
@@ -15,7 +16,7 @@ const getAuthenticatedUser = (req) => {
       name: req.body.currentUser.name || 'Unknown User',
       email: req.body.currentUser.email || 'unknown@example.com',
       profileImage: req.body.currentUser.profileImage || req.body.currentUser.avatar || 
-        `https://ui-avatars.com/api/?name=${encodeURIComponent(req.body.currentUser.name || 'User')}&background=f97316&color=fff&size=100`
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(req.body.currentUser.name || 'User')}&background=ff6b35&color=fff&size=100`
     };
   }
   
@@ -24,11 +25,31 @@ const getAuthenticatedUser = (req) => {
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const token = authHeader.substring(7);
-      // You'll need to decode your JWT token here
-      // For now, return null to use currentUser from request body
-      return null;
+      
+      // FIXED: Properly decode JWT token
+      // Method 1: If you have a JWT secret, use jwt.verify()
+      if (process.env.JWT_SECRET) {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        return {
+          _id: decoded.id || decoded.userId || decoded.sub,
+          name: decoded.name || decoded.username || 'User',
+          email: decoded.email || 'user@example.com',
+          profileImage: decoded.profileImage || decoded.avatar || decoded.picture ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(decoded.name || 'User')}&background=ff6b35&color=fff&size=100`
+        };
+      } else {
+        // Method 2: If no secret available, decode payload only (less secure)
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        return {
+          _id: payload.id || payload.userId || payload.sub,
+          name: payload.name || payload.username || 'User',
+          email: payload.email || 'user@example.com',
+          profileImage: payload.profileImage || payload.avatar || payload.picture ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(payload.name || 'User')}&background=ff6b35&color=fff&size=100`
+        };
+      }
     } catch (error) {
-      console.error('Error decoding token:', error);
+      console.error('Error decoding JWT token:', error);
       return null;
     }
   }
@@ -36,7 +57,7 @@ const getAuthenticatedUser = (req) => {
   return null;
 };
 
-// GET /api/reviews/product/:productId - Fetch reviews with full features
+// GET /api/reviews/product/:productId - Fetch reviews with correct user data
 router.get('/product/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
@@ -79,15 +100,15 @@ router.get('/product/:productId', async (req, res) => {
     // Get current user to check vote status
     const currentUser = getAuthenticatedUser(req);
     
-    // FIXED: Add real user info to each review
+    // FIXED: Use stored user data from reviews instead of hardcoded values
     const reviewsWithVoteStatus = reviews.map(review => ({
       ...review.toObject(),
       hasUserVoted: currentUser ? review.helpfulBy.includes(currentUser._id) : false,
       userId: {
-        name: review.userName || 'Anonymous User', // Use stored user name
-        email: review.userEmail || 'user@example.com', // Use stored user email  
+        name: review.userName || 'Anonymous User',
+        email: review.userEmail || 'user@example.com',
         profileImage: review.userProfileImage || 
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(review.userName || 'User')}&background=f97316&color=fff&size=100`
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(review.userName || 'User')}&background=ff6b35&color=fff&size=100`
       }
     }));
 
@@ -111,28 +132,34 @@ router.get('/product/:productId', async (req, res) => {
   }
 });
 
-// POST /api/reviews - Create new review with enhanced features
+// POST /api/reviews - Create new review with proper user data
 router.post('/', async (req, res) => {
   try {
     const { productId, rating, title, comment, images, currentUser } = req.body;
     
-    console.log('📝 Creating review:', { productId, rating, title, currentUser: currentUser?.name });
+    console.log('📝 Creating review:', { productId, rating, title });
     
-    // Get user from request - FIXED
+    // FIXED: Get user from JWT or request body properly
     const user = getAuthenticatedUser(req) || currentUser;
     
-    if (!user) {
+    if (!user || !user._id) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required - user data missing'
+        message: 'Authentication required - valid user data missing'
       });
     }
+    
+    console.log('👤 Authenticated user:', { 
+      id: user._id, 
+      name: user.name, 
+      email: user.email 
+    });
     
     // Enhanced validation
     if (!productId || !rating || !title || !comment) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields'
+        message: 'Missing required fields: productId, rating, title, comment'
       });
     }
     
@@ -146,7 +173,7 @@ router.post('/', async (req, res) => {
     // Check if user already reviewed this product
     const existingReview = await Review.findOne({
       productId: productId,
-      userId: user._id
+      userId: user._id.toString()
     });
 
     if (existingReview) {
@@ -163,13 +190,13 @@ router.post('/', async (req, res) => {
       console.log(`📸 Processing ${processedImages.length} images for review`);
     }
     
-    // FIXED: Store real user data in the review
+    // FIXED: Store complete user data in the review
     const newReview = new Review({
       productId: productId,
-      userId: user._id,
-      userName: user.name, // Store user name directly
-      userEmail: user.email, // Store user email directly  
-      userProfileImage: user.profileImage || user.avatar, // Store profile image
+      userId: user._id.toString(),
+      userName: user.name,
+      userEmail: user.email,
+      userProfileImage: user.profileImage,
       rating: parseInt(rating),
       title: title.trim(),
       comment: comment.trim(),
@@ -182,7 +209,7 @@ router.post('/', async (req, res) => {
     
     const savedReview = await newReview.save();
     
-    console.log(`✅ Review created by: ${user.name} with ${processedImages.length} images`);
+    console.log(`✅ Review created by: ${user.name} (${user.email}) with ${processedImages.length} images`);
     
     res.status(201).json({
       success: true,
@@ -193,7 +220,7 @@ router.post('/', async (req, res) => {
         userId: {
           name: user.name,
           email: user.email,
-          profileImage: user.profileImage || user.avatar
+          profileImage: user.profileImage
         }
       }
     });
@@ -222,10 +249,12 @@ router.post('/:reviewId/helpful', async (req, res) => {
     const { reviewId } = req.params;
     const user = getAuthenticatedUser(req);
     
-    // Allow voting without strict authentication (for testing)
+    // FIXED: Better user identification for voting
     const votingUser = user || {
-      _id: 'guest_' + Date.now()
+      _id: 'guest_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9)
     };
+    
+    console.log('👍 Vote attempt by user:', votingUser._id);
     
     const review = await Review.findById(reviewId);
     
@@ -237,7 +266,7 @@ router.post('/:reviewId/helpful', async (req, res) => {
     }
     
     // Check if user already voted
-    const hasVoted = review.helpfulBy.includes(votingUser._id);
+    const hasVoted = review.helpfulBy.includes(votingUser._id.toString());
     
     let updatedReview;
     
@@ -246,13 +275,13 @@ router.post('/:reviewId/helpful', async (req, res) => {
       updatedReview = await Review.findByIdAndUpdate(
         reviewId,
         {
-          $pull: { helpfulBy: votingUser._id },
+          $pull: { helpfulBy: votingUser._id.toString() },
           $inc: { helpfulVotes: -1 }
         },
         { new: true }
       );
       
-      console.log(`👎 Vote removed from review ${reviewId}`);
+      console.log(`👎 Vote removed from review ${reviewId} by user ${votingUser._id}`);
       res.json({
         success: true,
         message: 'Vote removed successfully',
@@ -264,13 +293,13 @@ router.post('/:reviewId/helpful', async (req, res) => {
       updatedReview = await Review.findByIdAndUpdate(
         reviewId,
         {
-          $addToSet: { helpfulBy: votingUser._id },
+          $addToSet: { helpfulBy: votingUser._id.toString() },
           $inc: { helpfulVotes: 1 }
         },
         { new: true }
       );
       
-      console.log(`👍 Vote added to review ${reviewId}`);
+      console.log(`👍 Vote added to review ${reviewId} by user ${votingUser._id}`);
       res.json({
         success: true,
         message: 'Vote added successfully',
@@ -289,7 +318,7 @@ router.post('/:reviewId/helpful', async (req, res) => {
   }
 });
 
-// GET /api/reviews/:reviewId - Get single review
+// GET /api/reviews/:reviewId - Get single review with correct user data
 router.get('/:reviewId', async (req, res) => {
   try {
     const { reviewId } = req.params;
@@ -305,7 +334,7 @@ router.get('/:reviewId', async (req, res) => {
     
     // Check if current user has voted
     const currentUser = getAuthenticatedUser(req);
-    const hasUserVoted = currentUser ? review.helpfulBy.includes(currentUser._id) : false;
+    const hasUserVoted = currentUser ? review.helpfulBy.includes(currentUser._id.toString()) : false;
     
     res.json({
       success: true,
@@ -313,9 +342,10 @@ router.get('/:reviewId', async (req, res) => {
         ...review.toObject(),
         hasUserVoted,
         userId: {
-          name: 'Anonymous User',
-          email: 'user@example.com',
-          profileImage: 'https://ui-avatars.com/api/?name=User&background=f97316&color=fff&size=100'
+          name: review.userName || 'Anonymous User',
+          email: review.userEmail || 'user@example.com',
+          profileImage: review.userProfileImage || 
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(review.userName || 'User')}&background=ff6b35&color=fff&size=100`
         }
       }
     });
@@ -330,13 +360,13 @@ router.get('/:reviewId', async (req, res) => {
   }
 });
 
-// DELETE /api/reviews/:reviewId - Delete review
+// DELETE /api/reviews/:reviewId - Delete review with proper user validation
 router.delete('/:reviewId', async (req, res) => {
   try {
     const { reviewId } = req.params;
     const user = getAuthenticatedUser(req);
     
-    if (!user) {
+    if (!user || !user._id) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required'
@@ -352,8 +382,8 @@ router.delete('/:reviewId', async (req, res) => {
       });
     }
     
-    // Check if user owns the review (simplified check)
-    if (review.userId !== user._id && !user.isAdmin) {
+    // FIXED: Proper user ownership check
+    if (review.userId !== user._id.toString() && !user.isAdmin) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized to delete this review'
@@ -362,7 +392,7 @@ router.delete('/:reviewId', async (req, res) => {
     
     await Review.findByIdAndDelete(reviewId);
     
-    console.log(`🗑️ Review ${reviewId} deleted`);
+    console.log(`🗑️ Review ${reviewId} deleted by user ${user._id}`);
     res.json({
       success: true,
       message: 'Review deleted successfully'
@@ -388,7 +418,7 @@ router.get('/health', async (req, res) => {
     
     res.json({
       status: 'OK',
-      service: 'Reviews API (Enhanced)',
+      service: 'Reviews API (Enhanced with JWT)',
       totalReviews,
       averageRating: averageRating[0]?.avgRating || 0,
       timestamp: new Date().toISOString()
@@ -396,12 +426,12 @@ router.get('/health', async (req, res) => {
   } catch (error) {
     res.status(500).json({
       status: 'Error',
-      service: 'Reviews API (Enhanced)',
+      service: 'Reviews API (Enhanced with JWT)',
       error: error.message
     });
   }
 });
 
-console.log('📋 Enhanced Reviews router configured with full features');
+console.log('📋 Enhanced Reviews router configured with proper JWT handling');
 
 module.exports = router;

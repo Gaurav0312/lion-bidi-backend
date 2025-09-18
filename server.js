@@ -4,6 +4,7 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 
+
 dotenv.config();
 const app = express();
 
@@ -39,6 +40,9 @@ app.get('/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+
+
 
 // ✅ REGISTER ALL ROUTES (before error handlers)
 try {
@@ -129,6 +133,15 @@ try {
   console.log("✅ Address routes loaded");
 } catch (error) {
   console.error("❌ Error loading address routes:", error.message);
+}
+
+try {
+  console.log("📋 Loading review routes...");
+  const reviewRoutes = require('./routes/reviews');
+  app.use('/api/reviews', reviewRoutes);
+  console.log("✅ Review routes loaded");
+} catch (error) {
+  console.error("❌ Error loading review routes:", error.message);
 }
 
 console.log("🎯 All routes registered successfully!");

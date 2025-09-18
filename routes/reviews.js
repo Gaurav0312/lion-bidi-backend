@@ -2,7 +2,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Mock data with real user information
+// Mock data with helpful votes tracking
 const mockReviews = {
   "1": [
     {
@@ -18,6 +18,7 @@ const mockReviews = {
       createdAt: new Date().toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 12,
+      helpfulBy: ['user_456', 'user_789'], // Track users who voted helpful
       images: []
     },
     {
@@ -33,6 +34,7 @@ const mockReviews = {
       createdAt: new Date(Date.now() - 172800000).toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 15,
+      helpfulBy: ['user_456'],
       images: []
     },
     {
@@ -48,6 +50,7 @@ const mockReviews = {
       createdAt: new Date(Date.now() - 86400000).toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 8,
+      helpfulBy: [],
       images: []
     }
   ],
@@ -65,6 +68,7 @@ const mockReviews = {
       createdAt: new Date(Date.now() - 172800000).toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 8,
+      helpfulBy: [],
       images: []
     },
     {
@@ -80,6 +84,7 @@ const mockReviews = {
       createdAt: new Date(Date.now() - 259200000).toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 6,
+      helpfulBy: ['user_456'],
       images: []
     }
   ]
@@ -201,32 +206,57 @@ router.post('/:reviewId/helpful', (req, res) => {
       });
     }
     
-    // Find and update review
-    let found = false;
-    let updatedVotes = 0;
+    // Find the review
+    let foundReview = null;
+    let productKey = null;
+    let reviewIndex = -1;
     
-    for (const productId in mockReviews) {
-      const reviewIndex = mockReviews[productId].findIndex(r => r._id === reviewId);
-      if (reviewIndex !== -1) {
-        mockReviews[productId][reviewIndex].helpfulVotes += 1;
-        updatedVotes = mockReviews[productId][reviewIndex].helpfulVotes;
-        found = true;
+    for (const pId in mockReviews) {
+      const index = mockReviews[pId].findIndex(r => r._id === reviewId);
+      if (index !== -1) {
+        foundReview = mockReviews[pId][index];
+        productKey = pId;
+        reviewIndex = index;
         break;
       }
     }
     
-    if (!found) {
+    if (!foundReview) {
       return res.status(404).json({
         success: false,
         message: 'Review not found'
       });
     }
     
-    res.json({
-      success: true,
-      message: 'Vote updated successfully',
-      helpfulVotes: updatedVotes
-    });
+    // Check if user already voted
+    const helpfulBy = foundReview.helpfulBy || [];
+    const hasVoted = helpfulBy.includes(user._id);
+    
+    if (hasVoted) {
+      // User already voted - remove vote (toggle)
+      foundReview.helpfulBy = helpfulBy.filter(id => id !== user._id);
+      foundReview.helpfulVotes = Math.max(0, foundReview.helpfulVotes - 1);
+      
+      console.log(`👎 User ${user.name} removed helpful vote from review ${reviewId}`);
+      res.json({
+        success: true,
+        message: 'Vote removed successfully',
+        helpfulVotes: foundReview.helpfulVotes,
+        hasVoted: false
+      });
+    } else {
+      // User hasn't voted - add vote
+      foundReview.helpfulBy = [...helpfulBy, user._id];
+      foundReview.helpfulVotes = foundReview.helpfulVotes + 1;
+      
+      console.log(`👍 User ${user.name} added helpful vote to review ${reviewId}`);
+      res.json({
+        success: true,
+        message: 'Vote added successfully',
+        helpfulVotes: foundReview.helpfulVotes,
+        hasVoted: true
+      });
+    }
     
   } catch (error) {
     console.error('❌ Error updating helpful vote:', error);

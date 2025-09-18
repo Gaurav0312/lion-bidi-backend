@@ -8,23 +8,31 @@ const Review = require('../models/Review');
 
 // Enhanced authentication middleware
 const getAuthenticatedUser = (req) => {
+  // Check if user data is passed in the request body (for testing without JWT)
+  if (req.body.currentUser && req.body.currentUser._id) {
+    return {
+      _id: req.body.currentUser._id,
+      name: req.body.currentUser.name || 'Unknown User',
+      email: req.body.currentUser.email || 'unknown@example.com',
+      profileImage: req.body.currentUser.profileImage || req.body.currentUser.avatar || 
+        `https://ui-avatars.com/api/?name=${encodeURIComponent(req.body.currentUser.name || 'User')}&background=f97316&color=fff&size=100`
+    };
+  }
+  
+  // Try to get from Authorization header (JWT)
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer ')) {
     try {
       const token = authHeader.substring(7);
       // You'll need to decode your JWT token here
-      // This is a simplified version - replace with your actual JWT decoding
-      return {
-        _id: 'user_123', // Get from decoded JWT
-        name: 'Gaurav Verma', // Get from decoded JWT or user lookup
-        email: 'gauravverma@312@gmail.com', // Get from decoded JWT or user lookup
-        profileImage: 'https://ui-avatars.com/api/?name=Gaurav+Verma&background=f97316&color=fff&size=100'
-      };
+      // For now, return null to use currentUser from request body
+      return null;
     } catch (error) {
       console.error('Error decoding token:', error);
       return null;
     }
   }
+  
   return null;
 };
 
@@ -34,31 +42,19 @@ router.get('/product/:productId', async (req, res) => {
     const { productId } = req.params;
     console.log(`🔍 Fetching reviews for product: ${productId}`);
     
-    // Debug: Check all reviews first
-    const allReviews = await Review.find({});
-    console.log(`📊 Total reviews in database: ${allReviews.length}`);
-    
-    if (allReviews.length > 0) {
-      console.log('Sample productIds:', allReviews.slice(0, 3).map(r => ({
-        id: r._id,
-        productId: r.productId,
-        type: typeof r.productId
-      })));
-    }
-    
-    // Fetch reviews (using string productId, not ObjectId)
+    // Fetch reviews (using string productId)
     const reviews = await Review.find({ 
-      productId: productId, // Use string comparison
+      productId: productId,
       status: 'approved' 
     }).sort({ createdAt: -1 });
 
     console.log(`📋 Found ${reviews.length} reviews for product ${productId}`);
     
-    // Calculate rating distribution (using string productId)
+    // Calculate rating distribution
     const ratingDistribution = await Review.aggregate([
       { 
         $match: { 
-          productId: productId, // Use string, not ObjectId
+          productId: productId,
           status: 'approved'
         }
       },
@@ -68,7 +64,7 @@ router.get('/product/:productId', async (req, res) => {
           count: { $sum: 1 }
         }
       },
-      { $sort: { _id: -1 } } // Sort by rating (5 to 1)
+      { $sort: { _id: -1 } }
     ]);
 
     // Ensure all ratings (1-5) are represented
@@ -83,14 +79,15 @@ router.get('/product/:productId', async (req, res) => {
     // Get current user to check vote status
     const currentUser = getAuthenticatedUser(req);
     
-    // Add hasUserVoted field to each review with enhanced user info
+    // FIXED: Add real user info to each review
     const reviewsWithVoteStatus = reviews.map(review => ({
       ...review.toObject(),
       hasUserVoted: currentUser ? review.helpfulBy.includes(currentUser._id) : false,
       userId: {
-        name: 'Anonymous User', // Since we don't have real user data yet
-        email: 'user@example.com',
-        profileImage: `https://ui-avatars.com/api/?name=${encodeURIComponent('User')}&background=f97316&color=fff&size=100`
+        name: review.userName || 'Anonymous User', // Use stored user name
+        email: review.userEmail || 'user@example.com', // Use stored user email  
+        profileImage: review.userProfileImage || 
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(review.userName || 'User')}&background=f97316&color=fff&size=100`
       }
     }));
 
@@ -117,24 +114,25 @@ router.get('/product/:productId', async (req, res) => {
 // POST /api/reviews - Create new review with enhanced features
 router.post('/', async (req, res) => {
   try {
-    const { productId, rating, title, comment, images } = req.body;
-    const user = getAuthenticatedUser(req);
+    const { productId, rating, title, comment, images, currentUser } = req.body;
     
-    console.log('📝 Creating review:', { productId, rating, title, hasUser: !!user });
+    console.log('📝 Creating review:', { productId, rating, title, currentUser: currentUser?.name });
     
-    // For now, allow reviews without authentication (for testing)
-    const reviewUser = user || {
-      _id: 'guest_' + Date.now(),
-      name: 'Anonymous User',
-      email: 'guest@example.com',
-      profileImage: 'https://ui-avatars.com/api/?name=Anonymous&background=f97316&color=fff&size=100'
-    };
+    // Get user from request - FIXED
+    const user = getAuthenticatedUser(req) || currentUser;
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required - user data missing'
+      });
+    }
     
     // Enhanced validation
     if (!productId || !rating || !title || !comment) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields: productId, rating, title, and comment are required'
+        message: 'Missing required fields'
       });
     }
     
@@ -145,36 +143,37 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // Check if user already reviewed this product (skip for guests)
-    if (user) {
-      const existingReview = await Review.findOne({
-        productId: productId,
-        userId: user._id
-      });
+    // Check if user already reviewed this product
+    const existingReview = await Review.findOne({
+      productId: productId,
+      userId: user._id
+    });
 
-      if (existingReview) {
-        return res.status(400).json({
-          success: false,
-          message: 'You have already reviewed this product'
-        });
-      }
+    if (existingReview) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this product'
+      });
     }
     
-    // Process images if provided
+    // Process images
     let processedImages = [];
     if (images && Array.isArray(images)) {
-      processedImages = images.slice(0, 3); // Limit to 3 images
+      processedImages = images.slice(0, 3);
       console.log(`📸 Processing ${processedImages.length} images for review`);
     }
     
-    // Create new review (using string productId and userId)
+    // FIXED: Store real user data in the review
     const newReview = new Review({
-      productId: productId, // Store as string, not ObjectId
-      userId: reviewUser._id, // Store as string
+      productId: productId,
+      userId: user._id,
+      userName: user.name, // Store user name directly
+      userEmail: user.email, // Store user email directly  
+      userProfileImage: user.profileImage || user.avatar, // Store profile image
       rating: parseInt(rating),
       title: title.trim(),
       comment: comment.trim(),
-      isVerifiedPurchase: false, // You can enhance this later
+      isVerifiedPurchase: false,
       helpfulVotes: 0,
       helpfulBy: [],
       status: 'approved',
@@ -183,7 +182,7 @@ router.post('/', async (req, res) => {
     
     const savedReview = await newReview.save();
     
-    console.log(`✅ Review created by: ${reviewUser.name} with ${processedImages.length} images`);
+    console.log(`✅ Review created by: ${user.name} with ${processedImages.length} images`);
     
     res.status(201).json({
       success: true,
@@ -192,9 +191,9 @@ router.post('/', async (req, res) => {
         ...savedReview.toObject(),
         hasUserVoted: false,
         userId: {
-          name: reviewUser.name,
-          email: reviewUser.email,
-          profileImage: reviewUser.profileImage
+          name: user.name,
+          email: user.email,
+          profileImage: user.profileImage || user.avatar
         }
       }
     });

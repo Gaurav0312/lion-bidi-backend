@@ -1,271 +1,466 @@
-// routes/reviews.js - Updated to use real user data
+// routes/reviews.js - Production Ready
 const express = require('express');
+const mongoose = require('mongoose');
+const jwt = require('jsonwebtoken');
+const Review = require('../models/Review');
+const User = require('../models/User');
 const router = express.Router();
 
-// Mock data with helpful votes tracking
-const mockReviews = {
-  "1": [
-    {
-      _id: '1',
-      userId: { 
-        name: 'Rajesh Kumar', 
-        email: 'rajesh@example.com',
-        profileImage: 'https://ui-avatars.com/api/?name=Rajesh+Kumar&background=f97316&color=fff&size=100'
-      },
-      rating: 5,
-      title: 'Excellent Quality',
-      comment: 'Excellent quality! The taste is authentic and burns slowly. Worth every penny.',
-      createdAt: new Date().toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 12,
-      helpfulBy: ['user_456', 'user_789'], // Track users who voted helpful
-      images: []
-    },
-    {
-      _id: '3',
-      userId: { 
-        name: 'Amit Patel', 
-        email: 'amit@example.com',
-        profileImage: 'https://ui-avatars.com/api/?name=Amit+Patel&background=3b82f6&color=fff&size=100'
-      },
-      rating: 5,
-      title: 'Best Purchase',
-      comment: 'Amazing product! Quick delivery and excellent packaging. Highly recommended.',
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 15,
-      helpfulBy: ['user_456'],
-      images: []
-    },
-    {
-      _id: '4',
-      userId: { 
-        name: 'Priya Sharma', 
-        email: 'priya@example.com',
-        profileImage: 'https://ui-avatars.com/api/?name=Priya+Sharma&background=ec4899&color=fff&size=100'
-      },
-      rating: 4,
-      title: 'Good Product',
-      comment: 'Good quality bidi. Fast delivery and nice packaging.',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 8,
-      helpfulBy: [],
-      images: []
+// Production-ready authentication middleware
+const getAuthenticatedUser = async (req) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return null;
     }
-  ],
-  "2": [
-    {
-      _id: '5',
-      userId: { 
-        name: 'Anil Singh', 
-        email: 'anil@example.com',
-        profileImage: 'https://ui-avatars.com/api/?name=Anil+Singh&background=10b981&color=fff&size=100'
-      },
-      rating: 4,
-      title: 'Good Small Pack',
-      comment: 'Good product, perfect size for trying. Nice packaging and fast delivery!',
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 8,
-      helpfulBy: [],
-      images: []
-    },
-    {
-      _id: '6',
-      userId: { 
-        name: 'Mohit Kumar', 
-        email: 'mohit@example.com',
-        profileImage: 'https://ui-avatars.com/api/?name=Mohit+Kumar&background=8b5cf6&color=fff&size=100'
-      },
-      rating: 5,
-      title: 'Premium Quality Small Pack',
-      comment: 'Best small pack I\'ve tried. Premium quality at reasonable price. Perfect for occasional use.',
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 6,
-      helpfulBy: ['user_456'],
-      images: []
-    }
-  ]
-};
 
-// Middleware for authentication (simplified)
-const getAuthenticatedUser = (req) => {
-  // In a real app, you'd extract user from JWT token
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    // For now, return mock user data based on token
-    return {
-      _id: 'user_123',
-      name: 'Gaurav Verma', // Use actual user name from your auth system
-      email: 'gauravverma@312@gmail.com',
-      profileImage: 'https://ui-avatars.com/api/?name=Gaurav+Verma&background=f97316&color=fff&size=100'
-    };
+    const token = authHeader.substring(7); // Remove "Bearer "
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    const user = await User.findById(decoded.userId).select('-password');
+    return user;
+  } catch (error) {
+    console.error('Authentication error:', error.message);
+    return null;
   }
-  return null;
 };
 
-router.get('/product/:productId', (req, res) => {
-  const { productId } = req.params;
-  const productReviews = mockReviews[productId] || [];
-  
-  const ratingDistribution = [
-    { _id: 5, count: productReviews.filter(r => r.rating === 5).length },
-    { _id: 4, count: productReviews.filter(r => r.rating === 4).length },
-    { _id: 3, count: productReviews.filter(r => r.rating === 3).length },
-    { _id: 2, count: productReviews.filter(r => r.rating === 2).length },
-    { _id: 1, count: productReviews.filter(r => r.rating === 1).length }
-  ];
+// Input validation middleware
+const validateReviewInput = (req, res, next) => {
+  const { productId, rating, title, comment } = req.body;
+  const errors = [];
 
-  res.json({
-    success: true,
-    reviews: productReviews,
-    totalReviews: productReviews.length,
-    ratingDistribution
-  });
+  if (!productId || !mongoose.Types.ObjectId.isValid(productId)) {
+    errors.push('Valid product ID is required');
+  }
+
+  if (!rating || rating < 1 || rating > 5 || !Number.isInteger(Number(rating))) {
+    errors.push('Rating must be an integer between 1 and 5');
+  }
+
+  if (!title || typeof title !== 'string' || title.trim().length === 0) {
+    errors.push('Title is required');
+  } else if (title.trim().length > 100) {
+    errors.push('Title must be less than 100 characters');
+  }
+
+  if (!comment || typeof comment !== 'string' || comment.trim().length === 0) {
+    errors.push('Comment is required');
+  } else if (comment.trim().length > 1000) {
+    errors.push('Comment must be less than 1000 characters');
+  }
+
+  if (errors.length > 0) {
+    return res.status(400).json({
+      success: false,
+      message: 'Validation failed',
+      errors
+    });
+  }
+
+  next();
+};
+
+// GET reviews for a product
+router.get('/product/:productId', async (req, res) => {
+  try {
+    const { productId } = req.params;
+
+    // Validate productId
+    if (!mongoose.Types.ObjectId.isValid(productId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product ID format'
+      });
+    }
+
+    // Fetch reviews from MongoDB with pagination
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+    const skip = (page - 1) * limit;
+
+    const reviews = await Review.find({ 
+      productId: new mongoose.Types.ObjectId(productId),
+      status: 'approved' // Only show approved reviews
+    })
+    .populate('userId', 'name email profileImage')
+    .sort({ createdAt: -1 })
+    .skip(skip)
+    .limit(limit);
+
+    const totalReviews = await Review.countDocuments({ 
+      productId: new mongoose.Types.ObjectId(productId),
+      status: 'approved'
+    });
+
+    // Calculate rating distribution
+    const ratingDistribution = await Review.aggregate([
+      { 
+        $match: { 
+          productId: new mongoose.Types.ObjectId(productId),
+          status: 'approved'
+        } 
+      },
+      { 
+        $group: { 
+          _id: '$rating', 
+          count: { $sum: 1 } 
+        } 
+      },
+      { $sort: { _id: 1 } }
+    ]);
+
+    // Calculate average rating
+    const avgRatingResult = await Review.aggregate([
+      { 
+        $match: { 
+          productId: new mongoose.Types.ObjectId(productId),
+          status: 'approved'
+        } 
+      },
+      { 
+        $group: { 
+          _id: null, 
+          averageRating: { $avg: '$rating' },
+          totalReviews: { $sum: 1 }
+        } 
+      }
+    ]);
+
+    const averageRating = avgRatingResult.length > 0 ? 
+      Math.round(avgRatingResult[0].averageRating * 10) / 10 : 0;
+
+    // Format reviews for frontend
+    const formattedReviews = reviews.map(review => ({
+      _id: review._id,
+      userId: {
+        name: review.userId?.name || 'Anonymous User',
+        email: review.userId?.email || '',
+        profileImage: review.userId?.profileImage || 
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(review.userId?.name || 'Anonymous')}&background=f97316&color=fff&size=100`
+      },
+      rating: review.rating,
+      title: review.title,
+      comment: review.comment,
+      createdAt: review.createdAt,
+      updatedAt: review.updatedAt,
+      isVerifiedPurchase: review.isVerifiedPurchase,
+      helpfulVotes: review.helpfulVotes,
+      helpfulBy: review.helpfulBy || [],
+      images: review.images || []
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        reviews: formattedReviews,
+        pagination: {
+          currentPage: page,
+          totalPages: Math.ceil(totalReviews / limit),
+          totalReviews,
+          hasNextPage: page < Math.ceil(totalReviews / limit),
+          hasPrevPage: page > 1
+        },
+        statistics: {
+          averageRating,
+          totalReviews,
+          ratingDistribution: ratingDistribution.reduce((acc, item) => {
+            acc[item._id] = item.count;
+            return acc;
+          }, { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 })
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error fetching reviews:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch reviews',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
 });
 
-router.post('/', (req, res) => {
+// POST new review
+router.post('/', validateReviewInput, async (req, res) => {
   try {
     const { productId, rating, title, comment, images } = req.body;
-    const user = getAuthenticatedUser(req);
-    
+    const user = await getAuthenticatedUser(req);
+
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: 'Authentication required'
+        message: 'Authentication required. Please log in to submit a review.'
       });
     }
-    
-    // Validation
-    if (!productId || !rating || !title || !comment) {
+
+    // Check if user has already reviewed this product
+    const existingReview = await Review.findOne({
+      productId: new mongoose.Types.ObjectId(productId),
+      userId: user._id
+    });
+
+    if (existingReview) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields'
+        message: 'You have already reviewed this product'
       });
     }
-    
-    // Validate images if provided
+
+    // Process and validate images
     let processedImages = [];
     if (images && Array.isArray(images)) {
-      processedImages = images.slice(0, 3); // Limit to 3 images
-      console.log(`📸 Processing ${processedImages.length} images for review`);
+      processedImages = images
+        .filter(img => typeof img === 'string' && img.startsWith('data:image/'))
+        .slice(0, 3); // Limit to 3 images
+      
+      // Validate image size (approximate check for base64)
+      for (const img of processedImages) {
+        const sizeInBytes = (img.length * 3) / 4;
+        if (sizeInBytes > 5 * 1024 * 1024) { // 5MB limit
+          return res.status(400).json({
+            success: false,
+            message: 'Image size must be less than 5MB'
+          });
+        }
+      }
     }
-    
-    // Create new review with real user data and images
-    const newReview = {
-      _id: `review_${Date.now()}`,
-      userId: {
-        name: user.name,
-        email: user.email,
-        profileImage: user.profileImage
-      },
+
+    // Create new review
+    const newReview = new Review({
+      productId: new mongoose.Types.ObjectId(productId),
+      userId: user._id,
       rating: parseInt(rating),
       title: title.trim(),
       comment: comment.trim(),
-      createdAt: new Date().toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 0,
-      images: processedImages // Store the base64 images
+      images: processedImages,
+      isVerifiedPurchase: true, // Set based on actual purchase verification
+      status: 'approved' // Set to 'pending' if manual approval is required
+    });
+
+    const savedReview = await newReview.save();
+    console.log(`✅ Review saved to MongoDB by user: ${user.name} (${user._id})`);
+
+    // Populate user data for response
+    await savedReview.populate('userId', 'name email profileImage');
+
+    // Format response
+    const formattedReview = {
+      _id: savedReview._id,
+      userId: {
+        name: savedReview.userId.name,
+        email: savedReview.userId.email,
+        profileImage: savedReview.userId.profileImage || 
+          `https://ui-avatars.com/api/?name=${encodeURIComponent(savedReview.userId.name)}&background=f97316&color=fff&size=100`
+      },
+      rating: savedReview.rating,
+      title: savedReview.title,
+      comment: savedReview.comment,
+      createdAt: savedReview.createdAt,
+      updatedAt: savedReview.updatedAt,
+      isVerifiedPurchase: savedReview.isVerifiedPurchase,
+      helpfulVotes: savedReview.helpfulVotes,
+      helpfulBy: savedReview.helpfulBy,
+      images: savedReview.images,
+      status: savedReview.status
     };
-    
-    // Add to mock data
-    const productKey = productId.toString();
-    if (!mockReviews[productKey]) {
-      mockReviews[productKey] = [];
-    }
-    mockReviews[productKey].unshift(newReview);
-    
-    console.log(`✅ Review created by: ${user.name} with ${processedImages.length} images`);
+
     res.status(201).json({
       success: true,
-      message: 'Review created successfully',
-      review: newReview
+      message: 'Review submitted successfully',
+      data: {
+        review: formattedReview
+      }
     });
-    
+
   } catch (error) {
     console.error('❌ Error creating review:', error);
+
+    // Handle specific MongoDB errors
+    if (error.code === 11000) {
+      return res.status(400).json({
+        success: false,
+        message: 'You have already reviewed this product'
+      });
+    }
+
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.values(error.errors).map(err => err.message);
+      return res.status(400).json({
+        success: false,
+        message: 'Validation failed',
+        errors: validationErrors
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Error creating review',
-      error: error.message
+      message: 'Failed to create review',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
 
-router.post('/:reviewId/helpful', (req, res) => {
+// PUT update helpful vote
+router.put('/:reviewId/helpful', async (req, res) => {
   try {
     const { reviewId } = req.params;
-    const user = getAuthenticatedUser(req);
-    
+    const user = await getAuthenticatedUser(req);
+
     if (!user) {
       return res.status(401).json({
         success: false,
         message: 'Authentication required'
       });
     }
-    
-    // Find the review
-    let foundReview = null;
-    let productKey = null;
-    let reviewIndex = -1;
-    
-    for (const pId in mockReviews) {
-      const index = mockReviews[pId].findIndex(r => r._id === reviewId);
-      if (index !== -1) {
-        foundReview = mockReviews[pId][index];
-        productKey = pId;
-        reviewIndex = index;
-        break;
-      }
+
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid review ID format'
+      });
     }
-    
-    if (!foundReview) {
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
       return res.status(404).json({
         success: false,
         message: 'Review not found'
       });
     }
-    
-    // Check if user already voted
-    const helpfulBy = foundReview.helpfulBy || [];
-    const hasVoted = helpfulBy.includes(user._id);
-    
+
+    const userIdString = user._id.toString();
+    const hasVoted = review.helpfulBy.some(id => id.toString() === userIdString);
+
     if (hasVoted) {
-      // User already voted - remove vote (toggle)
-      foundReview.helpfulBy = helpfulBy.filter(id => id !== user._id);
-      foundReview.helpfulVotes = Math.max(0, foundReview.helpfulVotes - 1);
-      
+      // Remove vote
+      review.helpfulBy = review.helpfulBy.filter(id => id.toString() !== userIdString);
+      review.helpfulVotes = Math.max(0, review.helpfulVotes - 1);
+      await review.save();
+
       console.log(`👎 User ${user.name} removed helpful vote from review ${reviewId}`);
+      
       res.json({
         success: true,
-        message: 'Vote removed successfully',
-        helpfulVotes: foundReview.helpfulVotes,
-        hasVoted: false
+        message: 'Helpful vote removed',
+        data: {
+          helpfulVotes: review.helpfulVotes,
+          hasVoted: false
+        }
       });
     } else {
-      // User hasn't voted - add vote
-      foundReview.helpfulBy = [...helpfulBy, user._id];
-      foundReview.helpfulVotes = foundReview.helpfulVotes + 1;
-      
+      // Add vote
+      review.helpfulBy.push(user._id);
+      review.helpfulVotes = review.helpfulVotes + 1;
+      await review.save();
+
       console.log(`👍 User ${user.name} added helpful vote to review ${reviewId}`);
+      
       res.json({
         success: true,
-        message: 'Vote added successfully',
-        helpfulVotes: foundReview.helpfulVotes,
-        hasVoted: true
+        message: 'Helpful vote added',
+        data: {
+          helpfulVotes: review.helpfulVotes,
+          hasVoted: true
+        }
       });
     }
-    
+
   } catch (error) {
     console.error('❌ Error updating helpful vote:', error);
     res.status(500).json({
       success: false,
-      message: 'Error updating vote',
-      error: error.message
+      message: 'Failed to update helpful vote',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
+});
+
+// DELETE review (only by review owner or admin)
+router.delete('/:reviewId', async (req, res) => {
+  try {
+    const { reviewId } = req.params;
+    const user = await getAuthenticatedUser(req);
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    if (!mongoose.Types.ObjectId.isValid(reviewId)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid review ID format'
+      });
+    }
+
+    const review = await Review.findById(reviewId);
+    if (!review) {
+      return res.status(404).json({
+        success: false,
+        message: 'Review not found'
+      });
+    }
+
+    // Check if user owns the review or is admin
+    if (review.userId.toString() !== user._id.toString() && user.role !== 'admin') {
+      return res.status(403).json({
+        success: false,
+        message: 'You can only delete your own reviews'
+      });
+    }
+
+    await Review.findByIdAndDelete(reviewId);
+    console.log(`🗑️ Review ${reviewId} deleted by user: ${user.name}`);
+
+    res.json({
+      success: true,
+      message: 'Review deleted successfully'
+    });
+
+  } catch (error) {
+    console.error('❌ Error deleting review:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to delete review',
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
+// Error handling middleware for this router
+router.use((error, req, res, next) => {
+  console.error('Review router error:', error);
+  
+  if (error.name === 'CastError') {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid ID format'
+    });
+  }
+
+  if (error.name === 'JsonWebTokenError') {
+    return res.status(401).json({
+      success: false,
+      message: 'Invalid authentication token'
+    });
+  }
+
+  if (error.name === 'TokenExpiredError') {
+    return res.status(401).json({
+      success: false,
+      message: 'Authentication token has expired'
+    });
+  }
+
+  res.status(500).json({
+    success: false,
+    message: 'Internal server error',
+    error: process.env.NODE_ENV === 'development' ? error.message : 'Something went wrong'
+  });
 });
 
 module.exports = router;

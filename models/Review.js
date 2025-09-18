@@ -1,15 +1,28 @@
-// models/Review.js
+// models/Review.js - ENHANCED
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
   productId: {
-    type: String, // Changed from ObjectId to String
+    type: String,
     required: true,
     index: true
   },
   userId: {
-    type: String, // Also changed to String for consistency
+    type: String,
     required: true
+  },
+  // ADDED: Store user data directly
+  userName: {
+    type: String,
+    required: true
+  },
+  userEmail: {
+    type: String,
+    required: true
+  },
+  userProfileImage: {
+    type: String,
+    default: null
   },
   rating: {
     type: Number,
@@ -32,7 +45,7 @@ const reviewSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  helpfulBy: [String], // Changed to String array
+  helpfulBy: [String],
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],

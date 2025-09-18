@@ -1,182 +1,160 @@
-// routes/reviews.js - Complete working version
+// routes/reviews.js - Updated to use real user data
 const express = require('express');
 const router = express.Router();
 
-console.log('📋 Reviews routes file loaded successfully');
+// Mock data with real user information
+// const mockReviews = {
+//   "1": [
+//     {
+//       _id: '1',
+//       userId: { 
+//         name: 'Rajesh Kumar', 
+//         email: 'rajesh@example.com',
+//         profileImage: 'https://ui-avatars.com/api/?name=Rajesh+Kumar&background=f97316&color=fff&size=100'
+//       },
+//       rating: 5,
+//       title: 'Excellent Quality',
+//       comment: 'Excellent quality! The taste is authentic and burns slowly. Worth every penny.',
+//       createdAt: new Date().toISOString(),
+//       isVerifiedPurchase: true,
+//       helpfulVotes: 12,
+//       images: []
+//     },
+//     {
+//       _id: '3',
+//       userId: { 
+//         name: 'Amit Patel', 
+//         email: 'amit@example.com',
+//         profileImage: 'https://ui-avatars.com/api/?name=Amit+Patel&background=3b82f6&color=fff&size=100'
+//       },
+//       rating: 5,
+//       title: 'Best Purchase',
+//       comment: 'Amazing product! Quick delivery and excellent packaging. Highly recommended.',
+//       createdAt: new Date(Date.now() - 172800000).toISOString(),
+//       isVerifiedPurchase: true,
+//       helpfulVotes: 15,
+//       images: []
+//     },
+//     {
+//       _id: '4',
+//       userId: { 
+//         name: 'Priya Sharma', 
+//         email: 'priya@example.com',
+//         profileImage: 'https://ui-avatars.com/api/?name=Priya+Sharma&background=ec4899&color=fff&size=100'
+//       },
+//       rating: 4,
+//       title: 'Good Product',
+//       comment: 'Good quality bidi. Fast delivery and nice packaging.',
+//       createdAt: new Date(Date.now() - 86400000).toISOString(),
+//       isVerifiedPurchase: true,
+//       helpfulVotes: 8,
+//       images: []
+//     }
+//   ],
+//   "2": [
+//     {
+//       _id: '5',
+//       userId: { 
+//         name: 'Anil Singh', 
+//         email: 'anil@example.com',
+//         profileImage: 'https://ui-avatars.com/api/?name=Anil+Singh&background=10b981&color=fff&size=100'
+//       },
+//       rating: 4,
+//       title: 'Good Small Pack',
+//       comment: 'Good product, perfect size for trying. Nice packaging and fast delivery!',
+//       createdAt: new Date(Date.now() - 172800000).toISOString(),
+//       isVerifiedPurchase: true,
+//       helpfulVotes: 8,
+//       images: []
+//     },
+//     {
+//       _id: '6',
+//       userId: { 
+//         name: 'Mohit Kumar', 
+//         email: 'mohit@example.com',
+//         profileImage: 'https://ui-avatars.com/api/?name=Mohit+Kumar&background=8b5cf6&color=fff&size=100'
+//       },
+//       rating: 5,
+//       title: 'Premium Quality Small Pack',
+//       comment: 'Best small pack I\'ve tried. Premium quality at reasonable price. Perfect for occasional use.',
+//       createdAt: new Date(Date.now() - 259200000).toISOString(),
+//       isVerifiedPurchase: true,
+//       helpfulVotes: 6,
+//       images: []
+//     }
+//   ]
+// };
 
-// Mock reviews data
-const mockReviews = {
-  "1": [
-    {
-      _id: '1',
-      userId: { 
-        name: 'Rajesh Kumar', 
-        email: 'rajesh@example.com' 
-      },
-      rating: 5,
-      title: 'Excellent Quality',
-      comment: 'Excellent quality! The taste is authentic and burns slowly. Worth every penny.',
-      createdAt: new Date().toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 12,
-      images: []
-    },
-    {
-      _id: '2',
-      userId: { 
-        name: 'Priya Sharma', 
-        email: 'priya@example.com' 
-      },
-      rating: 4,
-      title: 'Good Product',
-      comment: 'Good quality bidi. Fast delivery and nice packaging.',
-      createdAt: new Date(Date.now() - 86400000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 8,
-      images: []
-    },
-    {
-      _id: '3',
-      userId: { 
-        name: 'Amit Patel', 
-        email: 'amit@example.com' 
-      },
-      rating: 5,
-      title: 'Best Purchase',
-      comment: 'Amazing product! Quick delivery and excellent packaging. Highly recommended.',
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 15,
-      images: []
-    }
-  ],
-  "2": [
-    {
-      _id: '4',
-      userId: { 
-        name: 'Anil Singh', 
-        email: 'anil@example.com' 
-      },
-      rating: 4,
-      title: 'Good Small Pack',
-      comment: 'Good product, perfect size for trying. Nice packaging and fast delivery!',
-      createdAt: new Date(Date.now() - 172800000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 8,
-      images: []
-    },
-    {
-      _id: '5',
-      userId: { 
-        name: 'Mohit Kumar', 
-        email: 'mohit@example.com' 
-      },
-      rating: 5,
-      title: 'Premium Quality Small Pack',
-      comment: 'Best small pack I\'ve tried. Premium quality at reasonable price. Perfect for occasional use.',
-      createdAt: new Date(Date.now() - 259200000).toISOString(),
-      isVerifiedPurchase: true,
-      helpfulVotes: 6,
-      images: []
-    }
-  ]
+// Middleware for authentication (simplified)
+const getAuthenticatedUser = (req) => {
+  // In a real app, you'd extract user from JWT token
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // For now, return mock user data based on token
+    return {
+      _id: 'user_123',
+      name: 'Gaurav Verma', // Use actual user name from your auth system
+      email: 'gauravverma@312@gmail.com',
+      profileImage: 'https://ui-avatars.com/api/?name=Gaurav+Verma&background=f97316&color=fff&size=100'
+    };
+  }
+  return null;
 };
 
-// Middleware to log requests
-router.use((req, res, next) => {
-  console.log(`📋 Reviews API: ${req.method} ${req.originalUrl}`);
-  next();
-});
+router.get('/product/:productId', (req, res) => {
+  const { productId } = req.params;
+  const productReviews = mockReviews[productId] || [];
+  
+  const ratingDistribution = [
+    { _id: 5, count: productReviews.filter(r => r.rating === 5).length },
+    { _id: 4, count: productReviews.filter(r => r.rating === 4).length },
+    { _id: 3, count: productReviews.filter(r => r.rating === 3).length },
+    { _id: 2, count: productReviews.filter(r => r.rating === 2).length },
+    { _id: 1, count: productReviews.filter(r => r.rating === 1).length }
+  ];
 
-// Test route to verify reviews router is working
-router.get('/test', (req, res) => {
-  console.log('🧪 Reviews test route hit');
-  res.json({ 
-    message: 'Reviews routes are working!',
-    timestamp: new Date().toISOString(),
-    availableProducts: Object.keys(mockReviews)
+  res.json({
+    success: true,
+    reviews: productReviews,
+    totalReviews: productReviews.length,
+    ratingDistribution
   });
 });
 
-// GET /api/reviews/product/:productId
-router.get('/product/:productId', (req, res) => {
-  try {
-    const { productId } = req.params;
-    console.log(`🔍 Fetching reviews for product: ${productId}`);
-    
-    // Convert to string for consistent lookup
-    const productKey = productId.toString();
-    const productReviews = mockReviews[productKey] || [];
-    
-    console.log(`📊 Found ${productReviews.length} reviews for product ${productKey}`);
-    
-    // Calculate rating distribution
-    const ratingCounts = [0, 0, 0, 0, 0]; // [1-star, 2-star, 3-star, 4-star, 5-star]
-    
-    productReviews.forEach(review => {
-      if (review.rating >= 1 && review.rating <= 5) {
-        ratingCounts[review.rating - 1]++;
-      }
-    });
-    
-    // Create rating distribution (5 stars first)
-    const ratingDistribution = ratingCounts.map((count, index) => ({
-      _id: index + 1,
-      count: count
-    })).reverse();
-    
-    const response = {
-      success: true,
-      reviews: productReviews,
-      totalReviews: productReviews.length,
-      ratingDistribution: ratingDistribution
-    };
-    
-    console.log(`✅ Sending ${productReviews.length} reviews for product ${productKey}`);
-    res.json(response);
-    
-  } catch (error) {
-    console.error('❌ Error in GET /product/:productId:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching reviews',
-      error: error.message,
-      reviews: [],
-      totalReviews: 0,
-      ratingDistribution: []
-    });
-  }
-});
-
-// POST /api/reviews - Create new review
 router.post('/', (req, res) => {
   try {
-    const { productId, rating, title, comment } = req.body;
+    const { productId, rating, title, comment, images } = req.body;
+    const user = getAuthenticatedUser(req);
     
-    console.log('📝 Creating review:', { productId, rating, title });
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
     
     // Validation
     if (!productId || !rating || !title || !comment) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields',
-        required: ['productId', 'rating', 'title', 'comment']
+        message: 'Missing required fields'
       });
     }
     
-    if (rating < 1 || rating > 5) {
-      return res.status(400).json({
-        success: false,
-        message: 'Rating must be between 1 and 5'
-      });
+    // Validate images if provided
+    let processedImages = [];
+    if (images && Array.isArray(images)) {
+      processedImages = images.slice(0, 3); // Limit to 3 images
+      console.log(`📸 Processing ${processedImages.length} images for review`);
     }
     
-    // Create new review
+    // Create new review with real user data and images
     const newReview = {
       _id: `review_${Date.now()}`,
       userId: {
-        name: 'Current User',
-        email: 'user@example.com'
+        name: user.name,
+        email: user.email,
+        profileImage: user.profileImage
       },
       rating: parseInt(rating),
       title: title.trim(),
@@ -184,7 +162,7 @@ router.post('/', (req, res) => {
       createdAt: new Date().toISOString(),
       isVerifiedPurchase: true,
       helpfulVotes: 0,
-      images: []
+      images: processedImages // Store the base64 images
     };
     
     // Add to mock data
@@ -194,7 +172,7 @@ router.post('/', (req, res) => {
     }
     mockReviews[productKey].unshift(newReview);
     
-    console.log('✅ Review created successfully');
+    console.log(`✅ Review created by: ${user.name} with ${processedImages.length} images`);
     res.status(201).json({
       success: true,
       message: 'Review created successfully',
@@ -211,11 +189,17 @@ router.post('/', (req, res) => {
   }
 });
 
-// POST /api/reviews/:reviewId/helpful - Mark review helpful
 router.post('/:reviewId/helpful', (req, res) => {
   try {
     const { reviewId } = req.params;
-    console.log(`👍 Marking review ${reviewId} as helpful`);
+    const user = getAuthenticatedUser(req);
+    
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
     
     // Find and update review
     let found = false;
@@ -238,7 +222,6 @@ router.post('/:reviewId/helpful', (req, res) => {
       });
     }
     
-    console.log('✅ Helpful vote updated');
     res.json({
       success: true,
       message: 'Vote updated successfully',
@@ -254,25 +237,5 @@ router.post('/:reviewId/helpful', (req, res) => {
     });
   }
 });
-
-// Health check for reviews
-router.get('/health', (req, res) => {
-  const totalReviews = Object.values(mockReviews).reduce((sum, reviews) => sum + reviews.length, 0);
-  res.json({
-    status: 'OK',
-    service: 'Reviews API',
-    totalReviews,
-    availableProducts: Object.keys(mockReviews),
-    timestamp: new Date().toISOString()
-  });
-});
-
-console.log('📋 Reviews router configured with routes:', [
-  'GET /test',
-  'GET /product/:productId', 
-  'POST /',
-  'POST /:reviewId/helpful',
-  'GET /health'
-]);
 
 module.exports = router;

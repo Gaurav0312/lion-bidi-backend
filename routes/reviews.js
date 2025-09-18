@@ -1,96 +1,42 @@
-//routes/reviews.js
+// routes/reviews.js
 const express = require('express');
-const mongoose = require('mongoose');
 const router = express.Router();
-
-// Import your Review model
 const Review = require('../models/Review');
+const mongoose = require('mongoose');
 
-// Middleware for authentication - extract real user from JWT
-const getAuthenticatedUser = (req) => {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    try {
-      const token = authHeader.substring(7);
-      // You'll need to decode your JWT token here
-      // This is a simplified version - replace with your actual JWT decoding
-      return {
-        _id: 'user_123', // Get from decoded JWT
-        name: 'Gaurav Verma', // Get from decoded JWT or user lookup
-        email: 'gauravverma@312@gmail.com', // Get from decoded JWT or user lookup
-        profileImage: 'https://ui-avatars.com/api/?name=Gaurav+Verma&background=f97316&color=fff&size=100'
-      };
-    } catch (error) {
-      console.error('Error decoding token:', error);
-      return null;
-    }
-  }
-  return null;
-};
-
-// GET /api/reviews/product/:productId - Fetch reviews from MongoDB
+// GET /api/reviews/product/:productId - This is what your frontend calls
 router.get('/product/:productId', async (req, res) => {
   try {
     const { productId } = req.params;
+    
     console.log(`🔍 Fetching reviews for product: ${productId}`);
     
-    // Fetch reviews from MongoDB and populate user data
-    const reviews = await Review.find({ 
-      productId: productId,
-      status: 'approved' // Only show approved reviews
-    })
-    .populate('userId', 'name email profileImage') // Populate user data
-    .sort({ createdAt: -1 }) // Sort by newest first
-    .exec();
+    // Convert productId to ObjectId if it's a valid ObjectId, otherwise use as string
+    let query = { status: 'approved' };
+    
+    if (mongoose.Types.ObjectId.isValid(productId)) {
+      query.productId = new mongoose.Types.ObjectId(productId);
+    } else {
+      // If not a valid ObjectId, treat as string (for compatibility)
+      query.productId = productId;
+    }
 
-    console.log(`📊 Found ${reviews.length} reviews for product ${productId}`);
+    const reviews = await Review.find(query).sort({ createdAt: -1 });
     
     // Calculate rating distribution
     const ratingDistribution = await Review.aggregate([
-      { 
-        $match: { 
-          productId: new mongoose.Types.ObjectId(productId),
-          status: 'approved'
-        }
-      },
-      {
-        $group: {
-          _id: '$rating',
-          count: { $sum: 1 }
-        }
-      },
-      { $sort: { _id: -1 } } // Sort by rating (5 to 1)
+      { $match: query },
+      { $group: { _id: '$rating', count: { $sum: 1 } } },
+      { $sort: { _id: -1 } }
     ]);
 
-    // Ensure all ratings (1-5) are represented
-    const fullRatingDistribution = [5, 4, 3, 2, 1].map(rating => {
-      const found = ratingDistribution.find(r => r._id === rating);
-      return {
-        _id: rating,
-        count: found ? found.count : 0
-      };
-    });
-
-    // Get current user to check vote status
-    const currentUser = getAuthenticatedUser(req);
+    console.log(`📊 Found ${reviews.length} reviews for product ${productId}`);
     
-    // Add hasUserVoted field to each review
-    const reviewsWithVoteStatus = reviews.map(review => ({
-      ...review.toObject(),
-      hasUserVoted: currentUser ? review.helpfulBy.includes(currentUser._id) : false,
-      userId: {
-        name: review.userId?.name || 'Anonymous',
-        email: review.userId?.email || '',
-        profileImage: review.userId?.profileImage || 
-          `https://ui-avatars.com/api/?name=${encodeURIComponent(review.userId?.name || 'User')}&background=f97316&color=fff&size=100`
-      }
-    }));
-
     res.json({
       success: true,
-      reviews: reviewsWithVoteStatus,
+      reviews: reviews,
       totalReviews: reviews.length,
-      ratingDistribution: fullRatingDistribution
+      ratingDistribution: ratingDistribution
     });
     
   } catch (error) {
@@ -106,24 +52,18 @@ router.get('/product/:productId', async (req, res) => {
   }
 });
 
-// POST /api/reviews - Create new review in MongoDB
+// POST /api/reviews - This is what your frontend calls to create reviews
 router.post('/', async (req, res) => {
   try {
     const { productId, rating, title, comment, images } = req.body;
-    const user = getAuthenticatedUser(req);
     
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
-    }
+    console.log('📝 Submitting review:', { productId, rating, title });
     
     // Validation
     if (!productId || !rating || !title || !comment) {
       return res.status(400).json({
         success: false,
-        message: 'Missing required fields'
+        message: 'Missing required fields: productId, rating, title, and comment are required'
       });
     }
     
@@ -133,77 +73,43 @@ router.post('/', async (req, res) => {
         message: 'Rating must be between 1 and 5'
       });
     }
-
-    // Check if user already reviewed this product
-    const existingReview = await Review.findOne({
-      productId: productId,
-      userId: user._id
-    });
-
-    if (existingReview) {
-      return res.status(400).json({
-        success: false,
-        message: 'You have already reviewed this product'
-      });
-    }
     
-    // Process images if provided
-    let processedImages = [];
-    if (images && Array.isArray(images)) {
-      processedImages = images.slice(0, 3); // Limit to 3 images
-      console.log(`📸 Processing ${processedImages.length} images for review`);
-    }
+    // Create dummy user data (until you implement proper auth)
+    const dummyUserId = 'user_' + Date.now();
     
-    // Create new review in MongoDB
     const newReview = new Review({
-      productId: new mongoose.Types.ObjectId(productId),
-      userId: new mongoose.Types.ObjectId(user._id),
+      productId: mongoose.Types.ObjectId.isValid(productId) 
+        ? new mongoose.Types.ObjectId(productId) 
+        : productId,
+      userId: dummyUserId,
       rating: parseInt(rating),
       title: title.trim(),
       comment: comment.trim(),
-      isVerifiedPurchase: true, // You can check this based on order history
+      images: images || [],
       helpfulVotes: 0,
       helpfulBy: [],
-      status: 'approved', // You might want 'pending' for moderation
-      images: processedImages,
-      createdAt: new Date(),
-      updatedAt: new Date()
+      status: 'approved'
     });
     
     const savedReview = await newReview.save();
     
-    // Populate user data for response
-    const populatedReview = await Review.findById(savedReview._id)
-      .populate('userId', 'name email profileImage')
-      .exec();
-    
-    console.log(`✅ Review created in MongoDB by: ${user.name} with ${processedImages.length} images`);
+    console.log('✅ Review created successfully:', savedReview._id);
     
     res.status(201).json({
       success: true,
       message: 'Review created successfully',
       review: {
-        ...populatedReview.toObject(),
-        hasUserVoted: false,
+        ...savedReview.toObject(),
         userId: {
-          name: user.name,
-          email: user.email,
-          profileImage: user.profileImage
-        }
+          name: 'Anonymous User',
+          email: 'user@example.com'
+        },
+        hasUserVoted: false
       }
     });
     
   } catch (error) {
     console.error('❌ Error creating review:', error);
-    
-    if (error.code === 11000) {
-      // Duplicate key error (unique constraint)
-      return res.status(400).json({
-        success: false,
-        message: 'You have already reviewed this product'
-      });
-    }
-    
     res.status(500).json({
       success: false,
       message: 'Error creating review',
@@ -212,20 +118,12 @@ router.post('/', async (req, res) => {
   }
 });
 
-// POST /api/reviews/:reviewId/helpful - Toggle helpful vote in MongoDB
+// POST /api/reviews/:reviewId/helpful - For voting on reviews
 router.post('/:reviewId/helpful', async (req, res) => {
   try {
     const { reviewId } = req.params;
-    const user = getAuthenticatedUser(req);
+    const dummyUserId = 'user_' + Date.now(); // Replace with actual user ID from auth
     
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
-    }
-    
-    // Find the review in MongoDB
     const review = await Review.findById(reviewId);
     
     if (!review) {
@@ -235,50 +133,25 @@ router.post('/:reviewId/helpful', async (req, res) => {
       });
     }
     
-    // Check if user already voted
-    const hasVoted = review.helpfulBy.includes(user._id);
-    
-    let updatedReview;
+    const hasVoted = review.helpfulBy.includes(dummyUserId);
     
     if (hasVoted) {
       // Remove vote
-      updatedReview = await Review.findByIdAndUpdate(
-        reviewId,
-        {
-          $pull: { helpfulBy: user._id },
-          $inc: { helpfulVotes: -1 },
-          updatedAt: new Date()
-        },
-        { new: true }
-      );
-      
-      console.log(`👎 User ${user.name} removed helpful vote from review ${reviewId}`);
-      res.json({
-        success: true,
-        message: 'Vote removed successfully',
-        helpfulVotes: Math.max(0, updatedReview.helpfulVotes),
-        hasVoted: false
-      });
+      review.helpfulBy.pull(dummyUserId);
+      review.helpfulVotes = Math.max(0, review.helpfulVotes - 1);
     } else {
       // Add vote
-      updatedReview = await Review.findByIdAndUpdate(
-        reviewId,
-        {
-          $addToSet: { helpfulBy: user._id },
-          $inc: { helpfulVotes: 1 },
-          updatedAt: new Date()
-        },
-        { new: true }
-      );
-      
-      console.log(`👍 User ${user.name} added helpful vote to review ${reviewId}`);
-      res.json({
-        success: true,
-        message: 'Vote added successfully',
-        helpfulVotes: updatedReview.helpfulVotes,
-        hasVoted: true
-      });
+      review.helpfulBy.push(dummyUserId);
+      review.helpfulVotes += 1;
     }
+    
+    await review.save();
+    
+    res.json({
+      success: true,
+      helpfulVotes: review.helpfulVotes,
+      hasVoted: !hasVoted
+    });
     
   } catch (error) {
     console.error('❌ Error updating helpful vote:', error);
@@ -290,116 +163,6 @@ router.post('/:reviewId/helpful', async (req, res) => {
   }
 });
 
-// GET /api/reviews/:reviewId - Get single review from MongoDB
-router.get('/:reviewId', async (req, res) => {
-  try {
-    const { reviewId } = req.params;
-    
-    const review = await Review.findById(reviewId)
-      .populate('userId', 'name email profileImage')
-      .exec();
-    
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review not found'
-      });
-    }
-    
-    // Check if current user has voted
-    const currentUser = getAuthenticatedUser(req);
-    const hasUserVoted = currentUser ? review.helpfulBy.includes(currentUser._id) : false;
-    
-    res.json({
-      success: true,
-      review: {
-        ...review.toObject(),
-        hasUserVoted
-      }
-    });
-    
-  } catch (error) {
-    console.error('❌ Error fetching review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error fetching review',
-      error: error.message
-    });
-  }
-});
-
-// DELETE /api/reviews/:reviewId - Delete review (admin or owner only)
-router.delete('/:reviewId', async (req, res) => {
-  try {
-    const { reviewId } = req.params;
-    const user = getAuthenticatedUser(req);
-    
-    if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Authentication required'
-      });
-    }
-    
-    const review = await Review.findById(reviewId);
-    
-    if (!review) {
-      return res.status(404).json({
-        success: false,
-        message: 'Review not found'
-      });
-    }
-    
-    // Check if user is the review owner or admin
-    if (review.userId.toString() !== user._id && !user.isAdmin) {
-      return res.status(403).json({
-        success: false,
-        message: 'Not authorized to delete this review'
-      });
-    }
-    
-    await Review.findByIdAndDelete(reviewId);
-    
-    console.log(`🗑️ Review ${reviewId} deleted by ${user.name}`);
-    res.json({
-      success: true,
-      message: 'Review deleted successfully'
-    });
-    
-  } catch (error) {
-    console.error('❌ Error deleting review:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error deleting review',
-      error: error.message
-    });
-  }
-});
-
-// Health check for reviews with MongoDB stats
-router.get('/health', async (req, res) => {
-  try {
-    const totalReviews = await Review.countDocuments();
-    const averageRating = await Review.aggregate([
-      { $group: { _id: null, avgRating: { $avg: '$rating' } } }
-    ]);
-    
-    res.json({
-      status: 'OK',
-      service: 'Reviews API (MongoDB)',
-      totalReviews,
-      averageRating: averageRating[0]?.avgRating || 0,
-      timestamp: new Date().toISOString()
-    });
-  } catch (error) {
-    res.status(500).json({
-      status: 'Error',
-      service: 'Reviews API (MongoDB)',
-      error: error.message
-    });
-  }
-});
-
-console.log('📋 Reviews router configured with MongoDB integration');
+console.log('📋 Reviews router configured with proper Express Router syntax');
 
 module.exports = router;

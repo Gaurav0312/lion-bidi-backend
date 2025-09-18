@@ -141,8 +141,9 @@ try {
   app.use('/api/reviews', reviewRoutes);
   console.log("✅ Review routes loaded");
 } catch (error) {
-  console.error("❌ Error loading review routes:", error.message);
+  console.error("❌ Error loading review routes:", error);
 }
+
 
 console.log("🎯 All routes registered successfully!");
 

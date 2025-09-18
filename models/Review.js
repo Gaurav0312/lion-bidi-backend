@@ -3,12 +3,12 @@ const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
   productId: {
-    type: mongoose.Schema.Types.ObjectId,
+    type: String, // Changed from ObjectId to String
     required: true,
     index: true
   },
   userId: {
-    type: String, // For now, using string since you don't have proper user auth
+    type: String, // Also changed to String for consistency
     required: true
   },
   rating: {
@@ -32,7 +32,7 @@ const reviewSchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
-  helpfulBy: [String], // Array of user IDs who voted
+  helpfulBy: [String], // Changed to String array
   status: {
     type: String,
     enum: ['pending', 'approved', 'rejected'],

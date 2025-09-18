@@ -3,87 +3,87 @@ const express = require('express');
 const router = express.Router();
 
 // Mock data with real user information
-// const mockReviews = {
-//   "1": [
-//     {
-//       _id: '1',
-//       userId: { 
-//         name: 'Rajesh Kumar', 
-//         email: 'rajesh@example.com',
-//         profileImage: 'https://ui-avatars.com/api/?name=Rajesh+Kumar&background=f97316&color=fff&size=100'
-//       },
-//       rating: 5,
-//       title: 'Excellent Quality',
-//       comment: 'Excellent quality! The taste is authentic and burns slowly. Worth every penny.',
-//       createdAt: new Date().toISOString(),
-//       isVerifiedPurchase: true,
-//       helpfulVotes: 12,
-//       images: []
-//     },
-//     {
-//       _id: '3',
-//       userId: { 
-//         name: 'Amit Patel', 
-//         email: 'amit@example.com',
-//         profileImage: 'https://ui-avatars.com/api/?name=Amit+Patel&background=3b82f6&color=fff&size=100'
-//       },
-//       rating: 5,
-//       title: 'Best Purchase',
-//       comment: 'Amazing product! Quick delivery and excellent packaging. Highly recommended.',
-//       createdAt: new Date(Date.now() - 172800000).toISOString(),
-//       isVerifiedPurchase: true,
-//       helpfulVotes: 15,
-//       images: []
-//     },
-//     {
-//       _id: '4',
-//       userId: { 
-//         name: 'Priya Sharma', 
-//         email: 'priya@example.com',
-//         profileImage: 'https://ui-avatars.com/api/?name=Priya+Sharma&background=ec4899&color=fff&size=100'
-//       },
-//       rating: 4,
-//       title: 'Good Product',
-//       comment: 'Good quality bidi. Fast delivery and nice packaging.',
-//       createdAt: new Date(Date.now() - 86400000).toISOString(),
-//       isVerifiedPurchase: true,
-//       helpfulVotes: 8,
-//       images: []
-//     }
-//   ],
-//   "2": [
-//     {
-//       _id: '5',
-//       userId: { 
-//         name: 'Anil Singh', 
-//         email: 'anil@example.com',
-//         profileImage: 'https://ui-avatars.com/api/?name=Anil+Singh&background=10b981&color=fff&size=100'
-//       },
-//       rating: 4,
-//       title: 'Good Small Pack',
-//       comment: 'Good product, perfect size for trying. Nice packaging and fast delivery!',
-//       createdAt: new Date(Date.now() - 172800000).toISOString(),
-//       isVerifiedPurchase: true,
-//       helpfulVotes: 8,
-//       images: []
-//     },
-//     {
-//       _id: '6',
-//       userId: { 
-//         name: 'Mohit Kumar', 
-//         email: 'mohit@example.com',
-//         profileImage: 'https://ui-avatars.com/api/?name=Mohit+Kumar&background=8b5cf6&color=fff&size=100'
-//       },
-//       rating: 5,
-//       title: 'Premium Quality Small Pack',
-//       comment: 'Best small pack I\'ve tried. Premium quality at reasonable price. Perfect for occasional use.',
-//       createdAt: new Date(Date.now() - 259200000).toISOString(),
-//       isVerifiedPurchase: true,
-//       helpfulVotes: 6,
-//       images: []
-//     }
-//   ]
-// };
+const mockReviews = {
+  "1": [
+    {
+      _id: '1',
+      userId: { 
+        name: 'Rajesh Kumar', 
+        email: 'rajesh@example.com',
+        profileImage: 'https://ui-avatars.com/api/?name=Rajesh+Kumar&background=f97316&color=fff&size=100'
+      },
+      rating: 5,
+      title: 'Excellent Quality',
+      comment: 'Excellent quality! The taste is authentic and burns slowly. Worth every penny.',
+      createdAt: new Date().toISOString(),
+      isVerifiedPurchase: true,
+      helpfulVotes: 12,
+      images: []
+    },
+    {
+      _id: '3',
+      userId: { 
+        name: 'Amit Patel', 
+        email: 'amit@example.com',
+        profileImage: 'https://ui-avatars.com/api/?name=Amit+Patel&background=3b82f6&color=fff&size=100'
+      },
+      rating: 5,
+      title: 'Best Purchase',
+      comment: 'Amazing product! Quick delivery and excellent packaging. Highly recommended.',
+      createdAt: new Date(Date.now() - 172800000).toISOString(),
+      isVerifiedPurchase: true,
+      helpfulVotes: 15,
+      images: []
+    },
+    {
+      _id: '4',
+      userId: { 
+        name: 'Priya Sharma', 
+        email: 'priya@example.com',
+        profileImage: 'https://ui-avatars.com/api/?name=Priya+Sharma&background=ec4899&color=fff&size=100'
+      },
+      rating: 4,
+      title: 'Good Product',
+      comment: 'Good quality bidi. Fast delivery and nice packaging.',
+      createdAt: new Date(Date.now() - 86400000).toISOString(),
+      isVerifiedPurchase: true,
+      helpfulVotes: 8,
+      images: []
+    }
+  ],
+  "2": [
+    {
+      _id: '5',
+      userId: { 
+        name: 'Anil Singh', 
+        email: 'anil@example.com',
+        profileImage: 'https://ui-avatars.com/api/?name=Anil+Singh&background=10b981&color=fff&size=100'
+      },
+      rating: 4,
+      title: 'Good Small Pack',
+      comment: 'Good product, perfect size for trying. Nice packaging and fast delivery!',
+      createdAt: new Date(Date.now() - 172800000).toISOString(),
+      isVerifiedPurchase: true,
+      helpfulVotes: 8,
+      images: []
+    },
+    {
+      _id: '6',
+      userId: { 
+        name: 'Mohit Kumar', 
+        email: 'mohit@example.com',
+        profileImage: 'https://ui-avatars.com/api/?name=Mohit+Kumar&background=8b5cf6&color=fff&size=100'
+      },
+      rating: 5,
+      title: 'Premium Quality Small Pack',
+      comment: 'Best small pack I\'ve tried. Premium quality at reasonable price. Perfect for occasional use.',
+      createdAt: new Date(Date.now() - 259200000).toISOString(),
+      isVerifiedPurchase: true,
+      helpfulVotes: 6,
+      images: []
+    }
+  ]
+};
 
 // Middleware for authentication (simplified)
 const getAuthenticatedUser = (req) => {

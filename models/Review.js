@@ -1,18 +1,62 @@
-// models/Review.js
+// models/Review.js - String-based version
 const mongoose = require('mongoose');
 
 const reviewSchema = new mongoose.Schema({
   productId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Product',
+    type: String,
     required: [true, 'Product ID is required'],
-    index: true
+    index: true,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return v && v.length > 0;
+      },
+      message: 'Product ID cannot be empty'
+    }
   },
   userId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User',
+    type: String,
     required: [true, 'User ID is required'],
-    index: true
+    index: true,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        return v && v.length > 0;
+      },
+      message: 'User ID cannot be empty'
+    }
+  },
+  // Store user data directly in review document for better performance
+  userName: {
+    type: String,
+    required: [true, 'User name is required'],
+    trim: true,
+    maxLength: [100, 'User name cannot exceed 100 characters'],
+    minLength: [1, 'User name cannot be empty']
+  },
+  userEmail: {
+    type: String,
+    required: [true, 'User email is required'],
+    trim: true,
+    lowercase: true,
+    validate: {
+      validator: function(v) {
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+      },
+      message: 'Please enter a valid email address'
+    }
+  },
+  userProfileImage: {
+    type: String,
+    default: null,
+    trim: true,
+    validate: {
+      validator: function(v) {
+        if (!v) return true;
+        return /^https?:\/\/.+\.(jpg|jpeg|png|gif|webp|svg)(\?.*)?$/i.test(v);
+      },
+      message: 'Profile image must be a valid URL'
+    }
   },
   rating: {
     type: Number,
@@ -49,20 +93,19 @@ const reviewSchema = new mongoose.Schema({
     min: [0, 'Helpful votes cannot be negative']
   },
   helpfulBy: [{
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String // Store user IDs as strings
   }],
   status: {
     type: String,
     enum: {
-      values: ['pending', 'approved', 'rejected'],
-      message: 'Status must be pending, approved, or rejected'
+      values: ['pending', 'approved', 'rejected', 'spam'],
+      message: 'Status must be pending, approved, rejected, or spam'
     },
-    default: 'approved', // Change to 'pending' if you want manual moderation
+    default: 'approved',
     index: true
   },
   images: [{
-    type: String, // Base64 encoded images or URLs
+    type: String,
     validate: {
       validator: function(v) {
         // Allow base64 images or valid URLs
@@ -79,8 +122,7 @@ const reviewSchema = new mongoose.Schema({
   },
   reportedBy: [{
     userId: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: 'User'
+      type: String // String instead of ObjectId
     },
     reason: {
       type: String,
@@ -96,18 +138,16 @@ const reviewSchema = new mongoose.Schema({
     maxLength: [500, 'Moderator notes cannot exceed 500 characters']
   },
   moderatedBy: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'User'
+    type: String // String instead of ObjectId
   },
   moderatedAt: {
     type: Date
   }
 }, {
-  timestamps: true, // Automatically adds createdAt and updatedAt
+  timestamps: true,
   toJSON: { 
     virtuals: true,
     transform: function(doc, ret) {
-      // Remove sensitive fields from JSON output
       delete ret.__v;
       delete ret.reportedBy;
       delete ret.moderatorNotes;
@@ -120,12 +160,22 @@ const reviewSchema = new mongoose.Schema({
 });
 
 // Compound indexes for better query performance
-reviewSchema.index({ productId: 1, userId: 1 }, { unique: true }); // Prevent duplicate reviews
-reviewSchema.index({ productId: 1, status: 1 }); // For fetching approved reviews by product
-reviewSchema.index({ userId: 1, status: 1 }); // For fetching user's reviews
-reviewSchema.index({ createdAt: -1 }); // For sorting by date
-reviewSchema.index({ rating: 1, productId: 1 }); // For rating distribution queries
-reviewSchema.index({ helpfulVotes: -1 }); // For sorting by helpfulness
+reviewSchema.index({ productId: 1, userId: 1 }, { unique: true });
+reviewSchema.index({ productId: 1, status: 1 });
+reviewSchema.index({ userId: 1, status: 1 });
+reviewSchema.index({ createdAt: -1 });
+reviewSchema.index({ rating: 1, productId: 1 });
+reviewSchema.index({ helpfulVotes: -1 });
+
+// Virtual for user avatar with Lion Bidi branding
+reviewSchema.virtual('userAvatar').get(function() {
+  if (this.userProfileImage) {
+    return this.userProfileImage;
+  }
+  
+  const encodedName = encodeURIComponent(this.userName || 'User');
+  return `https://ui-avatars.com/api/?name=${encodedName}&background=ff6b35&color=fff&size=100&rounded=true`;
+});
 
 // Virtual for calculating days since review
 reviewSchema.virtual('daysAgo').get(function() {
@@ -148,12 +198,12 @@ reviewSchema.virtual('isRecent').get(function() {
   return this.createdAt > thirtyDaysAgo;
 });
 
-// Static methods for common queries
+// Static methods adapted for string IDs
 reviewSchema.statics.getProductRatingStats = async function(productId) {
   const stats = await this.aggregate([
     { 
       $match: { 
-        productId: new mongoose.Types.ObjectId(productId),
+        productId: productId, // Direct string comparison
         status: 'approved'
       }
     },
@@ -194,31 +244,29 @@ reviewSchema.statics.getProductRatingStats = async function(productId) {
 
 reviewSchema.statics.getUserReviewForProduct = async function(userId, productId) {
   return await this.findOne({
-    userId: new mongoose.Types.ObjectId(userId),
-    productId: new mongoose.Types.ObjectId(productId)
+    userId: userId, // Direct string comparison
+    productId: productId
   });
 };
 
 reviewSchema.statics.getMostHelpfulReviews = async function(productId, limit = 5) {
   return await this.find({
-    productId: new mongoose.Types.ObjectId(productId),
+    productId: productId, // Direct string comparison
     status: 'approved'
   })
-  .populate('userId', 'name email profileImage')
   .sort({ helpfulVotes: -1, createdAt: -1 })
   .limit(limit);
 };
 
-// Instance methods
+// Instance methods adapted for string IDs
 reviewSchema.methods.toggleHelpfulVote = async function(userId) {
-  const userObjectId = new mongoose.Types.ObjectId(userId);
-  const hasVoted = this.helpfulBy.includes(userObjectId);
+  const hasVoted = this.helpfulBy.includes(userId);
   
   if (hasVoted) {
-    this.helpfulBy.pull(userObjectId);
+    this.helpfulBy.pull(userId);
     this.helpfulVotes = Math.max(0, this.helpfulVotes - 1);
   } else {
-    this.helpfulBy.addToSet(userObjectId);
+    this.helpfulBy.addToSet(userId);
     this.helpfulVotes += 1;
   }
   
@@ -228,7 +276,7 @@ reviewSchema.methods.toggleHelpfulVote = async function(userId) {
 
 reviewSchema.methods.addReport = async function(userId, reason) {
   this.reportedBy.push({
-    userId: new mongoose.Types.ObjectId(userId),
+    userId: userId, // Direct string assignment
     reason: reason,
     reportedAt: new Date()
   });
@@ -254,31 +302,40 @@ reviewSchema.pre('save', function(next) {
     this.moderatedAt = new Date();
   }
   
+  // Sanitize user data
+  if (this.userName) {
+    this.userName = this.userName.trim().replace(/\s+/g, ' ');
+  }
+  
+  if (this.userEmail) {
+    this.userEmail = this.userEmail.toLowerCase().trim();
+  }
+  
   next();
 });
 
-// Pre-remove middleware to clean up related data
+// Pre-remove middleware
 reviewSchema.pre('remove', async function(next) {
-  // Could add cleanup logic here if needed
-  // For example, updating product average rating
+  // Cleanup logic if needed
   next();
 });
 
 // Post-save middleware for updating product statistics
 reviewSchema.post('save', async function(doc, next) {
-  // You could trigger product rating recalculation here
-  // Example: await Product.updateRatingStats(doc.productId);
+  // Trigger product rating recalculation if needed
   next();
 });
 
 // Add text index for search functionality
 reviewSchema.index({
   title: 'text',
-  comment: 'text'
+  comment: 'text',
+  userName: 'text'
 }, {
   weights: {
     title: 10,
-    comment: 5
+    comment: 5,
+    userName: 1
   }
 });
 

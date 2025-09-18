@@ -127,6 +127,15 @@ try {
 }
 
 try {
+  console.log("📋 Loading review routes...");
+  const reviewRoutes = require('./routes/reviews');
+  app.use('/api/reviews', reviewRoutes);
+  console.log("✅ Review routes loaded");
+} catch (error) {
+  console.error("❌ Error loading review routes:", error);  // log full error
+}
+
+try {
   console.log("🏠 Loading address routes...");
   const addressRoutes = require('./routes/address');
   app.use('/api/address', addressRoutes);
@@ -135,14 +144,8 @@ try {
   console.error("❌ Error loading address routes:", error.message);
 }
 
-try {
-  console.log("📋 Loading review routes...");
-  const reviewRoutes = require('./routes/reviews');
-  app.use('/api/reviews', reviewRoutes);
-  console.log("✅ Review routes loaded");
-} catch (error) {
-  console.error("❌ Error loading review routes:", error);
-}
+
+
 
 
 console.log("🎯 All routes registered successfully!");

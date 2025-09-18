@@ -371,7 +371,7 @@ router.post("/login", async (req, res) => {
     if (!user) {
       return res.status(401).json({
         success: false,
-        message: "Invalid credentials"
+        message: "Invalid email or password" // Don't reveal if user exists
       });
     }
 
@@ -419,12 +419,32 @@ router.post("/login", async (req, res) => {
     user.lastLogin = new Date();
     await user.save();
 
-    // Generate JWT token
-    const token = user.getSignedJwtToken();
+    // Generate JWT token (use consistent method)
+    const token = user.getSignedJwtToken ? user.getSignedJwtToken() : 
+      jwt.sign(
+        { id: user._id, email: user.email },
+        process.env.JWT_SECRET || "your-secret-key",
+        { expiresIn: "30d" }
+      );
 
-    // Prepare response
-    const userResponse = { ...user.toObject() };
-    delete userResponse.password;
+    // Return user data in the format your frontend expects
+    const userResponse = {
+      _id: user._id,
+      id: user._id, // Include both for compatibility
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      isAdmin: user.isAdmin || false,
+      role: user.role || "customer",
+      isEmailVerified: user.isEmailVerified,
+      isPhoneVerified: user.isPhoneVerified || false,
+      avatar: user.avatar || null,
+      addresses: user.addresses || [],
+      wishlist: user.wishlist || [],
+      dateOfBirth: user.dateOfBirth,
+      isActive: user.isActive,
+      lastLogin: user.lastLogin
+    };
 
     console.log("Login successful for:", user.email);
 
@@ -439,8 +459,8 @@ router.post("/login", async (req, res) => {
     console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      message: "Login failed",
-      error: error.message
+      message: "Login failed. Please try again.",
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 });
@@ -866,8 +886,7 @@ router.post("/send-login-otp", async (req, res) => {
 // ============
 router.post("/register", async (req, res) => {
   try {
-    const { name, email, phone, password, emailOtp, dateOfBirth, address } =
-      req.body;
+    const { name, email, phone, password, emailOtp, dateOfBirth, address } = req.body;
 
     console.log("Registration attempt:", {
       name,
@@ -880,6 +899,7 @@ router.post("/register", async (req, res) => {
     // Validate required fields
     if (!name || !email || !phone || !password || !emailOtp) {
       return res.status(400).json({
+        success: false,
         message: "Name, email, phone, password, and email OTP are required",
       });
     }
@@ -888,6 +908,7 @@ router.post("/register", async (req, res) => {
     const otpKey = `registration:${email.toLowerCase()}`;
     if (!verifyStoredOTP(otpKey, emailOtp)) {
       return res.status(400).json({
+        success: false,
         message: "Invalid or expired verification code",
         code: "INVALID_OTP",
       });
@@ -899,24 +920,25 @@ router.post("/register", async (req, res) => {
     });
 
     if (existingUser) {
-      return res
-        .status(400)
-        .json({ message: "User already exists with this email or phone" });
+      return res.status(400).json({ 
+        success: false,
+        message: "User already exists with this email or phone" 
+      });
     }
 
-    // Create user data
+    // Create user data - DON'T hash password here if your User model does it automatically
     const userData = {
       name: name.trim(),
       email: email.toLowerCase().trim(),
       phone,
-      password,
-      isEmailVerified: true, // Since OTP was verified
+      password, // Let the User model handle hashing in pre-save middleware
+      isEmailVerified: true,
+      isActive: true,
       dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : undefined,
     };
 
     // Add address if provided
     if (address && address.street) {
-      userData.address = address;
       userData.addresses = [
         {
           ...address,
@@ -944,10 +966,10 @@ router.post("/register", async (req, res) => {
       { expiresIn: "30d" }
     );
 
-    // Return user data (excluding password)
+    // Return user data in the format your frontend expects
     const userResponse = {
       _id: user._id,
-      id: user._id,
+      id: user._id, // Include both for compatibility
       name: user.name,
       email: user.email,
       phone: user.phone,
@@ -955,37 +977,43 @@ router.post("/register", async (req, res) => {
       role: user.role || "customer",
       isEmailVerified: user.isEmailVerified,
       isPhoneVerified: user.isPhoneVerified || false,
+      avatar: user.avatar || null,
       addresses: user.addresses || [],
       wishlist: user.wishlist || [],
-      cart: user.cart || [],
-      cartTotal: user.getCartTotal(),
-      cartItemsCount: user.getCartItemsCount(),
+      dateOfBirth: user.dateOfBirth,
+      isActive: user.isActive
     };
 
     res.status(201).json({
+      success: true,
       message: "User registered successfully",
       token,
       user: userResponse,
     });
+
   } catch (error) {
     console.error("Registration error:", error);
 
     if (error.name === "ValidationError") {
       const messages = Object.values(error.errors).map((err) => err.message);
-      return res.status(400).json({ message: messages.join(", ") });
-    }
-
-    if (error.code === 11000) {
-      // Duplicate key error
-      const field = Object.keys(error.keyPattern)[0];
-      return res.status(400).json({
-        message: `${
-          field === "email" ? "Email" : "Phone number"
-        } already exists`,
+      return res.status(400).json({ 
+        success: false,
+        message: messages.join(", ") 
       });
     }
 
-    res.status(500).json({ message: "Registration failed. Please try again." });
+    if (error.code === 11000) {
+      const field = Object.keys(error.keyPattern)[0];
+      return res.status(400).json({
+        success: false,
+        message: `${field === "email" ? "Email" : "Phone number"} already exists`,
+      });
+    }
+
+    res.status(500).json({ 
+      success: false,
+      message: "Registration failed. Please try again." 
+    });
   }
 });
 

@@ -452,7 +452,22 @@ router.post("/login", async (req, res) => {
       success: true,
       message: "Login successful",
       token,
-      user: userResponse
+      user: {
+    id: user._id,
+    _id: user._id, // Include both for compatibility
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    isAdmin: user.isAdmin || false,
+    role: user.role || 'customer',
+    isEmailVerified: user.isEmailVerified,
+    isPhoneVerified: user.isPhoneVerified || false,
+    avatar: user.avatar || null,
+    addresses: user.addresses || [],
+    wishlist: user.wishlist || [],
+    dateOfBirth: user.dateOfBirth,
+    isActive: user.isActive
+  }
     });
 
   } catch (error) {

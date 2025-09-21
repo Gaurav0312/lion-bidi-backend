@@ -154,7 +154,7 @@ app.use((req, res) => {
   res.status(404).json({ 
     success: false, 
     message: `Route ${req.method} ${req.path} not found`,
-    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders']
+    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders','/api/reviews', '/api/users', '/api/cart', '/api/wishlist', '/api/contact', '/api/address', '/api/categories']
   });
 });
 

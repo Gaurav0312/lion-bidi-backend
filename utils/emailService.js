@@ -95,12 +95,12 @@ const getEmailTemplate = (otp, type = "verification") => {
             .content { padding: 40px 30px; text-align: center; }
             .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
             .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fff7ed, #fefce8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
             .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #ff4500; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
+            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
             .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
             .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
-            .highlight { color: #ff4500; font-weight: 600; }
+            .highlight { color: #dc2626; font-weight: 600; }
             .logo { height: 40px; width: 40px; display: inline-block; margin-bottom: 10px; border-radius: 8px; }
           </style>
         </head>
@@ -128,7 +128,7 @@ const getEmailTemplate = (otp, type = "verification") => {
               <p style="font-size: 14px; color: #9ca3af;">If you didn't create an account, please ignore this email.</p>
             </div>
             <div class="footer">
-              <p><strong>© 2024 Lion Bidi</strong> - Premium Quality Products</p>
+              <p><strong>© 2025 Lion Bidi</strong> - Premium Quality Products</p>
               <p>This is an automated message, please do not reply to this email.</p>
               <p style="margin-top: 15px;">🌟 Thank you for choosing Lion Bidi! 🌟</p>
             </div>
@@ -160,14 +160,14 @@ const getEmailTemplate = (otp, type = "verification") => {
             .content { padding: 40px 30px; text-align: center; }
             .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
             .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fff7ed, #fefce8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
             .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #ff4500; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
+            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
             .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
             .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
             .warning { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0; }
             .warning strong { color: #92400e; }
-            .highlight { color: #ff4500; font-weight: 600; }
+            .highlight { color: #dc2626; font-weight: 600; }
             .logo { height: 40px; width: 40px; display: inline-block; margin-bottom: 10px; border-radius: 8px; }
           </style>
         </head>
@@ -199,7 +199,7 @@ const getEmailTemplate = (otp, type = "verification") => {
               </div>
             </div>
             <div class="footer">
-              <p><strong>© 2024 Lion Bidi</strong> - Premium Quality Products</p>
+              <p><strong>© 2025 Lion Bidi</strong> - Premium Quality Products</p>
               <p>This is an automated message, please do not reply to this email.</p>
               <p style="margin-top: 15px;">🛡️ Your security is our priority 🛡️</p>
             </div>
@@ -231,14 +231,14 @@ const getEmailTemplate = (otp, type = "verification") => {
             .content { padding: 40px 30px; text-align: center; }
             .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
             .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fff7ed, #fefce8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
             .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #ff4500; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
+            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
             .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
             .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
             .warning { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0; }
             .warning strong { color: #92400e; }
-            .highlight { color: #ff4500; font-weight: 600; }
+            .highlight { color: #dc2626; font-weight: 600; }
             .steps { background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; }
             .steps ol { margin: 0; padding-left: 20px; color: #1e40af; }
             .steps li { margin: 8px 0; }
@@ -283,7 +283,7 @@ const getEmailTemplate = (otp, type = "verification") => {
               </div>
             </div>
             <div class="footer">
-              <p><strong>© 2024 Lion Bidi</strong> - Premium Quality Products</p>
+              <p><strong>© 2025 Lion Bidi</strong> - Premium Quality Products</p>
               <p>This is an automated message, please do not reply to this email.</p>
               <p style="margin-top: 15px;">🔒 Your security is our top priority 🔒</p>
             </div>
@@ -384,7 +384,7 @@ const getOrderEmailTemplate = (type, data) => {
               </div>
             </div>
             <div class="footer">
-              <p>© 2024 Lion Bidi - Admin Notification</p>
+              <p>© 2025 Lion Bidi - Admin Notification</p>
             </div>
           </div>
         </body>
@@ -478,7 +478,7 @@ const getOrderEmailTemplate = (type, data) => {
             </div>
             
             <div class="footer">
-              <p><strong>© 2024 Lion Bidi</strong> - Admin Notification System</p>
+              <p><strong>© 2025 Lion Bidi</strong> - Admin Notification System</p>
               <p>This is an automated notification. Please do not reply to this email.</p>
             </div>
           </div>
@@ -644,7 +644,7 @@ const getOrderEmailTemplate = (type, data) => {
               <p>You will receive tracking information once your order ships.</p>
             </div>
             <div class="footer">
-              <p>© 2024 Lion Bidi - Premium Quality Products</p>
+              <p>© 2025 Lion Bidi - Premium Quality Products</p>
               <p>Need help? Contact us at support@lionbidi.com</p>
             </div>
           </div>
@@ -703,7 +703,7 @@ const getOrderEmailTemplate = (type, data) => {
               </div>
             </div>
             <div class="footer">
-              <p>© 2024 Lion Bidi - Premium Quality Products</p>
+              <p>© 2025 Lion Bidi - Premium Quality Products</p>
               <p>Need help? Contact us at <a href="mailto:lionbidicompany@gmail.com" style="color: #dc2626;">lionbidicompany@gmail.com</a> or call us at +91-9589773525</p>
             </div>
           </div>

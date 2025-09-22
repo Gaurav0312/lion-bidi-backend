@@ -95,12 +95,12 @@ const getEmailTemplate = (otp, type = "verification") => {
             .content { padding: 40px 30px; text-align: center; }
             .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
             .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+            .otp-box { background: linear-gradient(135deg, #fff7ed, #fefce8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
             .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
+            .otp { font-size: 36px; font-weight: bold; color: #ff4500; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
             .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
             .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
-            .highlight { color: #dc2626; font-weight: 600; }
+            .highlight { color: #ff4500; font-weight: 600; }
             .logo { height: 40px; width: 40px; display: inline-block; margin-bottom: 10px; border-radius: 8px; }
           </style>
         </head>
@@ -160,14 +160,14 @@ const getEmailTemplate = (otp, type = "verification") => {
             .content { padding: 40px 30px; text-align: center; }
             .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
             .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+            .otp-box { background: linear-gradient(135deg, #fff7ed, #fefce8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
             .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
+            .otp { font-size: 36px; font-weight: bold; color: #ff4500; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
             .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
             .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
             .warning { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0; }
             .warning strong { color: #92400e; }
-            .highlight { color: #dc2626; font-weight: 600; }
+            .highlight { color: #ff4500; font-weight: 600; }
             .logo { height: 40px; width: 40px; display: inline-block; margin-bottom: 10px; border-radius: 8px; }
           </style>
         </head>
@@ -231,14 +231,14 @@ const getEmailTemplate = (otp, type = "verification") => {
             .content { padding: 40px 30px; text-align: center; }
             .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
             .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
+            .otp-box { background: linear-gradient(135deg, #fff7ed, #fefce8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
             .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
+            .otp { font-size: 36px; font-weight: bold; color: #ff4500; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
             .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
             .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
             .warning { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0; }
             .warning strong { color: #92400e; }
-            .highlight { color: #dc2626; font-weight: 600; }
+            .highlight { color: #ff4500; font-weight: 600; }
             .steps { background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; }
             .steps ol { margin: 0; padding-left: 20px; color: #1e40af; }
             .steps li { margin: 8px 0; }

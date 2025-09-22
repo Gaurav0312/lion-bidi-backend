@@ -10,7 +10,7 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: ['http://localhost:3000','https://lionbidi.vercel.app','https://lionbidi.shop'],
+  origin: ['http://localhost:3000','https://lionbidi.vercel.app','https://lionbidi.shop', 'https://www.lionbidi.shop'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'admin-key', 'x-admin-key']

@@ -78,6 +78,109 @@ router.get("/:orderId/admin", adminAuth, async (req, res) => {
   }
 });
 
+router.put("/:orderId/cancel", auth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const userId = req.user.id;
+
+    // Find the order
+    const order = await Order.findById(orderId).populate('user');
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // Verify order belongs to the user
+    if (order.user._id.toString() !== userId) {
+      return res.status(403).json({
+        success: false,
+        message: "Unauthorized to cancel this order"
+      });
+    }
+
+    // Check if order can be cancelled
+    const cancellableStatuses = ["pending", "payment_submitted", "confirmed"];
+    if (!cancellableStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be cancelled. Current status: ${order.status}`
+      });
+    }
+
+    // Update order status to cancelled
+    order.status = "cancelled";
+    order.cancelledAt = new Date();
+    order.cancellationReason = req.body.reason || "Cancelled by customer";
+    
+    await order.save();
+
+    // Optional: Handle refund logic here if payment was processed
+    // This depends on your payment gateway integration
+
+    res.json({
+      success: true,
+      message: "Order cancelled successfully",
+      order: order
+    });
+
+  } catch (error) {
+    console.error("Error cancelling order:", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel order"
+    });
+  }
+});
+
+// Admin cancel order (with more flexibility)
+router.put("/:orderId/admin/cancel", adminAuth, async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { reason } = req.body;
+
+    const order = await Order.findById(orderId);
+    
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found"
+      });
+    }
+
+    // Admin can cancel orders in more statuses
+    const cancellableStatuses = ["pending", "payment_submitted", "confirmed", "processing"];
+    if (!cancellableStatuses.includes(order.status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Order cannot be cancelled. Current status: ${order.status}`
+      });
+    }
+
+    order.status = "cancelled";
+    order.cancelledAt = new Date();
+    order.cancellationReason = reason || "Cancelled by admin";
+    order.cancelledBy = "admin";
+    
+    await order.save();
+
+    res.json({
+      success: true,
+      message: "Order cancelled successfully by admin",
+      order: order
+    });
+
+  } catch (error) {
+    console.error("Error cancelling order (admin):", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to cancel order"
+    });
+  }
+});
+
 
 // @desc    Create new order from cart/checkout
 // @route   POST /api/orders/create

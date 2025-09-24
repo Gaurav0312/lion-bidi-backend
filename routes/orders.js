@@ -43,6 +43,42 @@ router.get("/admin/pending-verifications", adminAuth, async (req, res) => {
   }
 });
 
+// @desc    Get single order details (Admin version)
+// @route   GET /api/orders/:orderId/admin
+// @access  Private (Admin only)
+router.get("/:orderId/admin", adminAuth, async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.orderId)
+      .populate("userId", "name email phone"); // Populate user data for admin
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "Order not found",
+      });
+    }
+
+    // Transform the data to match frontend expectations
+    const transformedOrder = {
+      ...order.toObject(),
+      user: order.userId, // Map userId to user for frontend compatibility
+    };
+
+    res.json({
+      success: true,
+      order: transformedOrder,
+    });
+  } catch (error) {
+    console.error("❌ Error fetching order (admin):", error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch order",
+      error: error.message,
+    });
+  }
+});
+
+
 // @desc    Create new order from cart/checkout
 // @route   POST /api/orders/create
 // @access  Private

@@ -491,6 +491,48 @@ router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
   }
 });
 
+// When updating order status
+router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
+  try {
+    const Order = require('../models/Order');
+    const { status } = req.body;
+
+    const order = await Order.findById(req.params.orderId);
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order not found'
+      });
+    }
+
+    const oldStatus = order.status;
+    order.status = status;
+    order.statusHistory = order.statusHistory || [];
+    order.statusHistory.push({
+      status,
+      updatedBy: req.admin._id || req.admin.username,
+      updatedAt: new Date()
+    });
+
+    await order.save();
+
+    // TODO: Call inventory management function here
+    // handleInventoryForOrderStatusChange(order._id, status, oldStatus, order.items);
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully',
+      order
+    });
+  } catch (error) {
+    console.error('Order status update error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update order status'
+    });
+  }
+});
+
 // Get all users for admin
 router.get('/users', adminAuth, async (req, res) => {
   try {

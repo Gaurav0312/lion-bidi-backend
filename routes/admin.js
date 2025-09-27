@@ -354,13 +354,13 @@ router.get('/dashboard', adminAuth, async (req, res) => {
     // Transform the data to match frontend expectations
     const transformedRecentOrders = recentOrders.map(order => ({
       ...order,
-      user: order.userId, // Map userId to user for frontend compatibility
+      user: order.userId,
       orderDate: order.orderDate || order.createdAt
     }));
 
     const transformedPendingVerifications = pendingVerifications.map(order => ({
       ...order,
-      user: order.userId, // Map userId to user for frontend compatibility
+      user: order.userId,
     }));
 
     const dashboardData = {
@@ -420,7 +420,7 @@ router.get('/orders', adminAuth, async (req, res) => {
     }
 
     const orders = await Order.find(query)
-      .populate('userId', 'name email phone') // ✅ Fixed: populate userId, not user
+      .populate('userId', 'name email phone')
       .sort({ orderDate: -1 })
       .limit(limit * 1)
       .skip((page - 1) * limit);
@@ -430,7 +430,7 @@ router.get('/orders', adminAuth, async (req, res) => {
     // Transform data to match frontend expectations
     const transformedOrders = orders.map(order => ({
       ...order.toObject(),
-      user: order.userId, // ✅ Map userId to user for frontend compatibility
+      user: order.userId,
       orderDate: order.orderDate || order.createdAt
     }));
 
@@ -515,9 +515,6 @@ router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
     });
 
     await order.save();
-
-    // TODO: Call inventory management function here
-    // handleInventoryForOrderStatusChange(order._id, status, oldStatus, order.items);
 
     res.json({
       success: true,
@@ -680,8 +677,8 @@ router.get('/settings', adminAuth, async (req, res) => {
       settings = {
         general: {
           siteName: 'Lion Bidi',
-          siteEmail: 'admin@lionbidi.com',
-          supportPhone: '+91-9876543210',
+          siteEmail: 'lionbidicompany@gmail.com',
+          supportPhone: '+91-9589773525',
           currency: 'INR',
           timezone: 'Asia/Kolkata'
         },
@@ -695,11 +692,11 @@ router.get('/settings', adminAuth, async (req, res) => {
         security: {
           twoFactorAuth: false,
           sessionTimeout: 60,
-          passwordExpiry: 90,
+          passwordExpiry: 900,
           maxLoginAttempts: 5
         },
         payment: {
-          upiId: 'admin@paytm',
+          upiId: '9589773525@ptsbi',
           bankName: 'State Bank of India',
           accountNumber: '****7890',
           ifscCode: 'SBIN0123456',

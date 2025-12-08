@@ -1,39 +1,73 @@
-// utils/emailService.js
+// utils/emailService.js - Updated with Brevo support
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
-// Email configuration with enhanced error handling
+// Create transporter with Brevo or Gmail based on environment
 const createTransporter = () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error(
-      "Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables."
-    );
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  // Use Brevo in production (Render/Railway)
+  if (isProduction && process.env.BREVO_SMTP_KEY) {
+    console.log('📧 Using Brevo SMTP for production emails');
+    
+    const transporter = nodemailer.createTransport({
+      host: "smtp-relay.brevo.com",
+      port: 587,
+      secure: false, // Use STARTTLS
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.BREVO_SMTP_KEY, // Brevo SMTP key
+      },
+      connectionTimeout: 60000,
+      greetingTimeout: 30000,
+      socketTimeout: 60000,
+    });
+
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error("❌ Brevo transporter verification failed:", error);
+      } else {
+        console.log("✅ Brevo email transporter ready for sending emails");
+      }
+    });
+
+    return transporter;
   }
-
-  const transporter = nodemailer.createTransport({
-    service: "gmail",
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
-    },
-    tls: {
-      rejectUnauthorized: false,
-    },
-    pool: true, // Enable connection pooling
-    maxConnections: 5,
-    maxMessages: 100,
-  });
-
-  // Verify connection on creation
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error("Email transporter verification failed:", error);
-    } else {
-      console.log("Email transporter ready for sending emails");
+  
+  // Use Gmail for local development
+  else {
+    console.log('📧 Using Gmail SMTP for local development');
+    
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error(
+        "Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables."
+      );
     }
-  });
 
-  return transporter;
+    const transporter = nodemailer.createTransport({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+      tls: {
+        rejectUnauthorized: false,
+      },
+      pool: true,
+      maxConnections: 5,
+      maxMessages: 100,
+    });
+
+    transporter.verify((error, success) => {
+      if (error) {
+        console.error("❌ Gmail transporter verification failed:", error);
+      } else {
+        console.log("✅ Gmail email transporter ready for sending emails");
+      }
+    });
+
+    return transporter;
+  }
 };
 
 // Generate OTP with enhanced security
@@ -41,6 +75,7 @@ const generateOTP = () => {
   return crypto.randomInt(100000, 999999).toString();
 };
 
+// Send order notification emails
 const sendOrderNotificationEmail = async (email, type, orderData) => {
   try {
     console.log(`Sending ${type} email to:`, email);
@@ -61,10 +96,10 @@ const sendOrderNotificationEmail = async (email, type, orderData) => {
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(`${type} email sent successfully:`, result.messageId);
+    console.log(`✅ ${type} email sent successfully:`, result.messageId);
     return result;
   } catch (error) {
-    console.error(`Send ${type} email error:`, error);
+    console.error(`❌ Send ${type} email error:`, error);
     throw new Error(`Failed to send ${type} email: ${error.message}`);
   }
 };
@@ -297,7 +332,7 @@ const getEmailTemplate = (otp, type = "verification") => {
   return templates[type] || templates.verification;
 };
 
-// Fixed getOrderEmailTemplate function for utils/emailService.js
+// Keep your existing getOrderEmailTemplate function here
 const getOrderEmailTemplate = (type, data) => {
   // Add safety checks for data
   const safeData = {
@@ -740,7 +775,6 @@ const sendEmailOTP = async (
       to: email,
       subject: template.subject,
       html: template.html,
-      // Add additional headers for better deliverability
       headers: {
         "X-Priority": "1",
         "X-MSMail-Priority": "High",
@@ -748,27 +782,19 @@ const sendEmailOTP = async (
       },
     };
 
-    console.log("Sending email with options:", {
-      from: mailOptions.from,
-      to: mailOptions.to,
-      subject: mailOptions.subject,
-    });
-
     const result = await transporter.sendMail(mailOptions);
 
-    console.log("Email sent successfully:", {
+    console.log("✅ Email sent successfully:", {
       messageId: result.messageId,
       accepted: result.accepted,
       rejected: result.rejected,
-      response: result.response,
     });
 
     return result;
   } catch (error) {
-    console.error(`Send email error (Attempt ${retryCount + 1}):`, {
+    console.error(`❌ Send email error (Attempt ${retryCount + 1}):`, {
       message: error.message,
       code: error.code,
-      stack: error.stack,
     });
 
     // Retry logic for transient errors
@@ -792,12 +818,11 @@ const sendEmailOTP = async (
   }
 };
 
-// Enhanced test email function with more comprehensive testing
+// Test email service
 const testEmailService = async (testEmail = null) => {
   try {
     console.log("Testing email service...");
 
-    // Test with provided email or default
     const targetEmail =
       testEmail || process.env.EMAIL_USER || "test@example.com";
     const testOtp = generateOTP();
@@ -830,20 +855,25 @@ const testEmailService = async (testEmail = null) => {
 
 // Validate email configuration
 const validateEmailConfig = () => {
-  const requiredEnvVars = ["EMAIL_USER", "EMAIL_PASS"];
-  const missing = requiredEnvVars.filter((varName) => !process.env[varName]);
-
-  if (missing.length > 0) {
-    throw new Error(
-      `Missing required environment variables: ${missing.join(", ")}`
-    );
+  const isProduction = process.env.NODE_ENV === 'production';
+  
+  if (isProduction) {
+    // Production needs Brevo
+    if (!process.env.BREVO_SMTP_KEY) {
+      throw new Error("Missing BREVO_SMTP_KEY for production");
+    }
+  } else {
+    // Local needs Gmail
+    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error("Missing EMAIL_USER or EMAIL_PASS for local development");
+    }
   }
 
-  console.log("Email configuration validated successfully");
+  console.log("✅ Email configuration validated successfully");
   return true;
 };
 
-// Email rate limiting helper (optional)
+// Email rate limiting helper
 const emailRateLimit = new Map();
 
 const checkEmailRateLimit = (email, type = "general") => {
@@ -856,10 +886,8 @@ const checkEmailRateLimit = (email, type = "general") => {
   }
 
   const attempts = emailRateLimit.get(key);
-  // Remove attempts older than 1 minute
   const recentAttempts = attempts.filter((time) => now - time < minute);
 
-  // Check rate limit (max 3 emails per minute per email/type)
   if (recentAttempts.length >= 3) {
     return false;
   }

@@ -15,6 +15,7 @@
   "type": "commonjs",
   "dependencies": {
     "@reduxjs/toolkit": "^2.8.2",
+    "@sendgrid/mail": "^8.1.6",
     "axios": "^1.11.0",
     "bcryptjs": "^3.0.2",
     "cloudinary": "^2.7.0",
@@ -31,6 +32,7 @@
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
     "nodemailer": "^7.0.5",
+    "nodemailer-brevo-transport": "^2.2.1",
     "react-redux": "^9.2.0"
   },
   "devDependencies": {

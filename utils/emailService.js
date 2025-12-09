@@ -1,49 +1,62 @@
-// utils/emailService.js - Updated with Brevo support
+// utils/emailService.js - Final solution with SendGrid
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 
-// Create transporter with Brevo or Gmail based on environment
-const createTransporter = () => {
+// Try to import SendGrid (optional)
+let sgMail;
+try {
+  sgMail = require('@sendgrid/mail');
+} catch (e) {
+  console.log('SendGrid not installed, will use nodemailer only');
+}
+
+// Initialize SendGrid if available
+if (sgMail && process.env.SENDGRID_API_KEY) {
+  sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+}
+
+// Generate OTP
+const generateOTP = () => {
+  return crypto.randomInt(100000, 999999).toString();
+};
+
+// Main send email function with fallback logic
+const sendEmailOTP = async (email, otp, type = "verification", retryCount = 0) => {
   const isProduction = process.env.NODE_ENV === 'production';
-  
-  // Use Brevo in production (Render/Railway)
-  if (isProduction && process.env.BREVO_SMTP_KEY) {
-    console.log('📧 Using Brevo SMTP for production emails');
-    
-    const transporter = nodemailer.createTransport({
-      host: "smtp-relay.brevo.com",
-      port: 587,
-      secure: false, // Use STARTTLS
-      auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.BREVO_SMTP_KEY, // Brevo SMTP key
-      },
-      connectionTimeout: 60000,
-      greetingTimeout: 30000,
-      socketTimeout: 60000,
-    });
+  const template = getEmailTemplate(otp, type);
 
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error("❌ Brevo transporter verification failed:", error);
-      } else {
-        console.log("✅ Brevo email transporter ready for sending emails");
-      }
-    });
+  // Try SendGrid first in production (HTTP-based, works on Render)
+  if (isProduction && sgMail && process.env.SENDGRID_API_KEY) {
+    try {
+      console.log(`📧 Sending ${type} email via SendGrid to:`, email);
+      
+      const msg = {
+        to: email,
+        from: {
+          email: process.env.SENDGRID_VERIFIED_SENDER || process.env.EMAIL_USER,
+          name: 'Lion Bidi - Premium Quality'
+        },
+        subject: template.subject,
+        html: template.html,
+      };
 
-    return transporter;
-  }
-  
-  // Use Gmail for local development
-  else {
-    console.log('📧 Using Gmail SMTP for local development');
-    
-    if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-      throw new Error(
-        "Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables."
-      );
+      const result = await sgMail.send(msg);
+      console.log('✅ Email sent via SendGrid:', result[0].statusCode);
+      return result;
+      
+    } catch (error) {
+      console.error('❌ SendGrid error:', error.message);
+      // Don't fallback in production - throw error so it can be handled
+      throw new Error(`SendGrid email failed: ${error.message}`);
     }
+  }
 
+  // Use Gmail for local development
+  const maxRetries = 3;
+  
+  try {
+    console.log(`📧 Sending ${type} email via Gmail to:`, email, `(Attempt ${retryCount + 1})`);
+    
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
@@ -53,58 +66,96 @@ const createTransporter = () => {
       tls: {
         rejectUnauthorized: false,
       },
-      pool: true,
-      maxConnections: 5,
-      maxMessages: 100,
     });
-
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error("❌ Gmail transporter verification failed:", error);
-      } else {
-        console.log("✅ Gmail email transporter ready for sending emails");
-      }
-    });
-
-    return transporter;
-  }
-};
-
-// Generate OTP with enhanced security
-const generateOTP = () => {
-  return crypto.randomInt(100000, 999999).toString();
-};
-
-// Send order notification emails
-const sendOrderNotificationEmail = async (email, type, orderData) => {
-  try {
-    console.log(`Sending ${type} email to:`, email);
-
-    const transporter = createTransporter();
-    const template = getOrderEmailTemplate(type, orderData);
 
     const mailOptions = {
       from: `"Lion Bidi - Premium Quality" <${process.env.EMAIL_USER}>`,
       to: email,
       subject: template.subject,
       html: template.html,
-      headers: {
-        "X-Priority": "1",
-        "X-MSMail-Priority": "High",
-        Importance: "High",
-      },
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log(`✅ ${type} email sent successfully:`, result.messageId);
+    console.log('✅ Email sent via Gmail:', result.messageId);
     return result;
+    
   } catch (error) {
-    console.error(`❌ Send ${type} email error:`, error);
+    console.error(`❌ Gmail error (Attempt ${retryCount + 1}):`, error.message);
+
+    // Retry logic
+    if (retryCount < maxRetries && 
+        (error.code === "ECONNRESET" || 
+         error.code === "ETIMEDOUT" || 
+         error.message.includes("timeout"))) {
+      console.log(`Retrying in ${(retryCount + 1) * 2} seconds...`);
+      await new Promise(resolve => setTimeout(resolve, (retryCount + 1) * 2000));
+      return sendEmailOTP(email, otp, type, retryCount + 1);
+    }
+
+    throw new Error(`Failed to send email: ${error.message}`);
+  }
+};
+
+// Send order notification emails
+const sendOrderNotificationEmail = async (email, type, orderData) => {
+  const isProduction = process.env.NODE_ENV === 'production';
+  const template = getOrderEmailTemplate(type, orderData);
+
+  // Use SendGrid in production
+  if (isProduction && sgMail && process.env.SENDGRID_API_KEY) {
+    try {
+      console.log(`📧 Sending ${type} email via SendGrid to:`, email);
+      
+      const msg = {
+        to: email,
+        from: {
+          email: process.env.SENDGRID_VERIFIED_SENDER || process.env.EMAIL_USER,
+          name: 'Lion Bidi - Premium Quality'
+        },
+        subject: template.subject,
+        html: template.html,
+      };
+
+      const result = await sgMail.send(msg);
+      console.log(`✅ ${type} email sent via SendGrid:`, result[0].statusCode);
+      return result;
+      
+    } catch (error) {
+      console.error(`❌ SendGrid ${type} email error:`, error.message);
+      throw new Error(`Failed to send ${type} email: ${error.message}`);
+    }
+  }
+
+  // Use Gmail for local
+  try {
+    console.log(`📧 Sending ${type} email via Gmail to:`, email);
+    
+    const transporter = nodemailer.createTransporter({
+      service: "gmail",
+      auth: {
+        user: process.env.EMAIL_USER,
+        pass: process.env.EMAIL_PASS,
+      },
+    });
+
+    const mailOptions = {
+      from: `"Lion Bidi - Premium Quality" <${process.env.EMAIL_USER}>`,
+      to: email,
+      subject: template.subject,
+      html: template.html,
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log(`✅ ${type} email sent via Gmail:`, result.messageId);
+    return result;
+    
+  } catch (error) {
+    console.error(`❌ Gmail ${type} email error:`, error.message);
     throw new Error(`Failed to send ${type} email: ${error.message}`);
   }
 };
 
-// Enhanced email templates with better mobile responsiveness
+// Keep all your existing template functions
 const getEmailTemplate = (otp, type = "verification") => {
   const templates = {
     verification: {
@@ -751,149 +802,25 @@ const getOrderEmailTemplate = (type, data) => {
   return templates[type] || templates.order_confirmed;
 };
 
-// Enhanced send email function with retry logic
-const sendEmailOTP = async (
-  email,
-  otp,
-  type = "verification",
-  retryCount = 0
-) => {
-  const maxRetries = 3;
-
-  try {
-    console.log(
-      `Attempting to send ${type} email to:`,
-      email,
-      `(Attempt ${retryCount + 1})`
-    );
-
-    const transporter = createTransporter();
-    const template = getEmailTemplate(otp, type);
-
-    const mailOptions = {
-      from: `"Lion Bidi - Premium Quality" <${process.env.EMAIL_USER}>`,
-      to: email,
-      subject: template.subject,
-      html: template.html,
-      headers: {
-        "X-Priority": "1",
-        "X-MSMail-Priority": "High",
-        Importance: "High",
-      },
-    };
-
-    const result = await transporter.sendMail(mailOptions);
-
-    console.log("✅ Email sent successfully:", {
-      messageId: result.messageId,
-      accepted: result.accepted,
-      rejected: result.rejected,
-    });
-
-    return result;
-  } catch (error) {
-    console.error(`❌ Send email error (Attempt ${retryCount + 1}):`, {
-      message: error.message,
-      code: error.code,
-    });
-
-    // Retry logic for transient errors
-    if (
-      retryCount < maxRetries &&
-      (error.code === "ECONNRESET" ||
-        error.code === "ETIMEDOUT" ||
-        error.code === "ENOTFOUND" ||
-        error.message.includes("timeout"))
-    ) {
-      console.log(`Retrying email send in ${(retryCount + 1) * 2} seconds...`);
-      await new Promise((resolve) =>
-        setTimeout(resolve, (retryCount + 1) * 2000)
-      );
-      return sendEmailOTP(email, otp, type, retryCount + 1);
-    }
-
-    throw new Error(
-      `Failed to send email after ${retryCount + 1} attempts: ${error.message}`
-    );
-  }
-};
-
-// Test email service
-const testEmailService = async (testEmail = null) => {
-  try {
-    console.log("Testing email service...");
-
-    const targetEmail =
-      testEmail || process.env.EMAIL_USER || "test@example.com";
-    const testOtp = generateOTP();
-
-    console.log(`Sending test email to: ${targetEmail}`);
-
-    const result = await sendEmailOTP(targetEmail, testOtp, "verification");
-
-    console.log("Email service test successful:", {
-      messageId: result.messageId,
-      targetEmail,
-      testOtp,
-    });
-
-    return {
-      success: true,
-      messageId: result.messageId,
-      targetEmail,
-      testOtp,
-    };
-  } catch (error) {
-    console.error("Email service test failed:", error.message);
-    return {
-      success: false,
-      error: error.message,
-      code: error.code,
-    };
-  }
-};
-
-// Validate email configuration
+// Validate configuration
 const validateEmailConfig = () => {
   const isProduction = process.env.NODE_ENV === 'production';
   
   if (isProduction) {
-    // Production needs Brevo
-    if (!process.env.BREVO_SMTP_KEY) {
-      throw new Error("Missing BREVO_SMTP_KEY for production");
+    if (!process.env.SENDGRID_API_KEY) {
+      console.warn('⚠️ SENDGRID_API_KEY not set for production');
+      return false;
+    }
+    if (!process.env.SENDGRID_VERIFIED_SENDER) {
+      console.warn('⚠️ SENDGRID_VERIFIED_SENDER not set');
     }
   } else {
-    // Local needs Gmail
     if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
       throw new Error("Missing EMAIL_USER or EMAIL_PASS for local development");
     }
   }
 
-  console.log("✅ Email configuration validated successfully");
-  return true;
-};
-
-// Email rate limiting helper
-const emailRateLimit = new Map();
-
-const checkEmailRateLimit = (email, type = "general") => {
-  const key = `${email}:${type}`;
-  const now = Date.now();
-  const minute = 60 * 1000;
-
-  if (!emailRateLimit.has(key)) {
-    emailRateLimit.set(key, []);
-  }
-
-  const attempts = emailRateLimit.get(key);
-  const recentAttempts = attempts.filter((time) => now - time < minute);
-
-  if (recentAttempts.length >= 3) {
-    return false;
-  }
-
-  recentAttempts.push(now);
-  emailRateLimit.set(key, recentAttempts);
+  console.log("✅ Email configuration validated");
   return true;
 };
 
@@ -901,8 +828,5 @@ module.exports = {
   generateOTP,
   sendEmailOTP,
   sendOrderNotificationEmail,
-  testEmailService,
-  createTransporter,
   validateEmailConfig,
-  checkEmailRateLimit,
 };

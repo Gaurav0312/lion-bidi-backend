@@ -4,39 +4,22 @@ const crypto = require("crypto");
 
 // Email configuration with enhanced error handling
 const createTransporter = () => {
-  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
-    throw new Error(
-      "Email credentials not configured. Please set EMAIL_USER and EMAIL_PASS environment variables."
-    );
-  }
-
-  // 🔴 CHANGE: Use explicit host/port instead of service: 'gmail'
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com", 
-    port: 465,               // Force Secure SSL Port
-    secure: true,            // Must be true for port 465
+    host: "smtp.gmail.com",
+    port: 587,              // 👈 Change to 587
+    secure: false,          // 👈 Must be false for port 587
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS,
     },
-    // Keep your existing TLS config
     tls: {
-      rejectUnauthorized: false, 
+      rejectUnauthorized: false,
+      ciphers: "SSLv3"      // 👈 Sometimes helps with older handshake protocols
     },
-    // 🔴 CHANGE: Turn off pooling for troubleshooting timeouts
-    // Pooling can cause issues in serverless/container environments like Render
-    pool: false, 
+    connectionTimeout: 10000, // 👈 Fail faster (10 seconds) instead of waiting 2 mins
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
   });
-
-  // Verify connection on creation
-  transporter.verify((error, success) => {
-    if (error) {
-      console.error("Email transporter verification failed:", error);
-    } else {
-      console.log("Email transporter ready for sending emails");
-    }
-  });
-
   return transporter;
 };
 

@@ -65,113 +65,135 @@ const getEmailTemplate = (otp, type = "verification") => {
       subject: "Verify Your Email - Lion Bidi",
       html: `
         <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Verification Code</title>
-          <style>
-            body { 
-              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
-              margin: 0; 
-              padding: 0; 
-              background-color: #ffffff; 
-              color: #2f2f2f; 
-            }
-            .container { 
-              max-width: 500px; 
-              margin: 40px auto; 
-              padding: 20px; 
-              text-align: center;
-            }
-            /* Header Style similar to Hostinger */
-            .header {
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              margin-bottom: 40px;
-              gap: 12px; /* Space between logo and text */
-            }
-            .logo { 
-              width: 60px; 
-              height: 60px; 
-              object-fit: contain;
-            }
-            .brand-name {
-              font-size: 36px;
-              font-weight: 700;
-              color: #FF6B35;
-              letter-spacing: -0.5px;
-            }
-            
-            /* Rest of the design */
-            h1 { 
-              font-size: 22px; 
-              font-weight: 700; 
-              margin-bottom: 25px; 
-              color: #1f1f1f;
-            }
-            .otp-box { 
-              border: 1px solid #e5e7eb; 
-              border-radius: 16px; 
-              padding: 40px 20px; 
-              margin-bottom: 30px;
-              background: linear-gradient(135deg, #fff7ed, #fffbeb, #fefce8);
-            }
-            .otp { 
-              font-size: 48px; 
-              font-weight: 700; 
-              color: #FF6B35; /* Hostinger Purple */
-              letter-spacing: 2px;
-              margin: 0;
-            }
-            .footer-text { 
-              font-size: 14px; 
-              color: #6b7280; 
-              margin-bottom: 10px;
-              line-height: 1.5;
-            }
-            .footer-logo { 
-              width: 40px; 
-              height: 40px; 
-              object-fit: contain;
-            }
-            .bold { 
-              font-weight: 600; 
-              color: #1f1f1f; 
-            }
-          </style>
-        </head>
-        <body>
-          <div class="container">
-            <div class="header">
-              <img 
-                src="https://res.cloudinary.com/dxqerqng1/image/upload/v1754660338/campaign_covers/brixv4aazfsuzq27kfbc.png" 
-                alt="Lion Bidi" 
-                class="logo"
-              />
-              <span class="brand-name">Lion Bidi</span>
-            </div>
-            
-            <h1>Here is your login verification code:</h1>
-            
-            <div class="otp-box">
-              <div class="otp">${otp}</div>
-            </div>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Verification Code</title>
+    <style>
+      body {
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #ffffff;
+        color: #2f2f2f;
+      }
+      .container {
+        max-width: 500px;
+        margin: 40px auto;
+        padding: 20px;
+        text-align: center;
+      }
 
-            <p class="footer-text">
-              Please make sure you never share this code with anyone.
-            </p>
-            <p class="footer-text">
-              <span class="bold">Note:</span> The code will expire in 10 minutes.
-            </p>
+      .header {
+        text-align: center;
+        margin-bottom: 40px;
+        font-size: 0;
+      }
 
-            <div style="margin-top: 50px; border-top: 1px solid #f3f4f6; padding-top: 20px;">
-               <p style="font-size: 18px; color: #9ca3af;">© 2025 Lion Bidi Company</p>
-            </div>
-          </div>
-        </body>
-        </html>
+      .logo {
+        width: 60px;
+        height: 60px;
+        object-fit: contain;
+        display: inline-block;
+        vertical-align: middle;
+      }
+
+      .brand-name {
+        font-size: 36px;
+        font-weight: 700;
+        color: #ff6b35;
+        letter-spacing: -0.5px;
+        display: inline-block;
+        vertical-align: middle;
+        margin-left: 12px;
+      }
+
+      /* Rest of Design */
+      h1 {
+        font-size: 22px;
+        font-weight: 700;
+        margin-bottom: 25px;
+        color: #1f1f1f;
+      }
+
+      .otp-box {
+        border: 1px solid #e5e7eb;
+        border-radius: 16px;
+        padding: 40px 20px;
+        margin-bottom: 30px;
+        background: linear-gradient(135deg, #fff7ed, #fffbeb, #fefce8);
+      }
+
+      .otp {
+        font-size: 48px;
+        font-weight: 700;
+        color: #ff6b35;
+        letter-spacing: 2px;
+        margin: 0;
+      }
+
+      .footer-text {
+        font-size: 14px;
+        color: #6b7280;
+        margin-bottom: 10px;
+        line-height: 1.5;
+      }
+
+      .bold {
+        font-weight: 600;
+        color: #1f1f1f;
+      }
+
+      .footer-copyright {
+        margin-top: 50px;
+        border-top: 1px solid #f3f4f6;
+        padding-top: 20px;
+      }
+
+      .copyright-text {
+        font-size: 18px;
+        color: #9ca3af;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <img
+          src="https://res.cloudinary.com/dxqerqng1/image/upload/v1754660338/campaign_covers/brixv4aazfsuzq27kfbc.png"
+          alt="Lion Bidi"
+          class="logo"
+        />
+        <span class="brand-name">Lion Bidi</span>
+      </div>
+
+      <h1>Here is your login verification code:</h1>
+
+      <div class="otp-box">
+        <div class="otp">123456</div>
+      </div>
+
+      <p class="footer-text">
+        Please make sure you never share this code with anyone.
+      </p>
+      <p class="footer-text">
+        <span class="bold">Note:</span> The code will expire in 10 minutes.
+      </p>
+
+      <div
+        style="
+          margin-top: 10px;
+          border-top: 1px solid #f3f4f6;
+          padding-top: 20px;
+        "
+      >
+        <p style="font-size: 18px; color: #9ca3af">© 2025 Lion Bidi Company</p>
+      </div>
+    </div>
+  </body>
+</html>
+
       `,
     },
     login: {
@@ -253,76 +275,43 @@ const getEmailTemplate = (otp, type = "verification") => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Password Reset - Lion Bidi</title>
+          <title>Password Reset</title>
           <style>
-            @media only screen and (max-width: 600px) {
-              .container { width: 100% !important; }
-              .content { padding: 20px !important; }
-              .otp { font-size: 24px !important; letter-spacing: 2px !important; }
-            }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
-            .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-            .header { background: linear-gradient(135deg, #ea580c, #dc2626, #ea580c); padding: 30px 20px; text-align: center; }
-            .header h1 { color: white; margin: 10px 0 5px 0; font-size: 28px; font-weight: bold; }
-            .header p { color: #fef2f2; margin: 0; font-size: 14px; font-weight: 500; }
-            .content { padding: 40px 30px; text-align: center; }
-            .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
-            .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
-            .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
-            .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
-            .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
-            .warning { background: linear-gradient(135deg, #fef3c7, #fde68a); border: 2px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 25px 0; }
-            .warning strong { color: #92400e; }
-            .highlight { color: #dc2626; font-weight: 600; }
-            .steps { background-color: #f0f9ff; border: 1px solid #bae6fd; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: left; }
-            .steps ol { margin: 0; padding-left: 20px; color: #1e40af; }
-            .steps li { margin: 8px 0; }
-            .logo { height: 40px; width: 40px; display: inline-block; margin-bottom: 10px; border-radius: 8px; }
+            body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #ffffff; color: #2f2f2f; }
+            .container { max-width: 500px; margin: 40px auto; padding: 20px; text-align: center; }
+            .header { text-align: center; margin-bottom: 40px; font-size: 0; }
+            .logo { width: 60px; height: 60px; object-fit: contain; display: inline-block; vertical-align: middle; }
+            .brand-name { font-size: 36px; font-weight: 700; color: #FF6B35; letter-spacing: -0.5px; display: inline-block; vertical-align: middle; margin-left: 12px; }
+            h1 { font-size: 22px; font-weight: 700; margin-bottom: 25px; color: #1f1f1f; }
+            .otp-box { border: 1px solid #e5e7eb; border-radius: 16px; padding: 40px 20px; margin-bottom: 30px; background: linear-gradient(135deg, #fff7ed, #fffbeb, #fefce8); }
+            .otp { font-size: 48px; font-weight: 700; color: #FF6B35; letter-spacing: 2px; margin: 0; }
+            .footer-text { font-size: 14px; color: #6b7280; margin-bottom: 10px; line-height: 1.5; }
+            .bold { font-weight: 600; color: #1f1f1f; }
+            .footer-copyright { margin-top: 10px; border-top: 1px solid #f3f4f6; padding-top: 20px; }
+            .copyright-text { font-size: 18px; color: #9ca3af; }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <img
-                src="https://res.cloudinary.com/dxqerqng1/image/upload/v1754660338/campaign_covers/brixv4aazfsuzq27kfbc.png"
-                alt="Lion Bidi"
-                class="logo"
-              />
-              <h1>Lion Bidi</h1>
-              <p>Premium Quality</p>
+              <img src="https://res.cloudinary.com/dxqerqng1/image/upload/v1754660338/campaign_covers/brixv4aazfsuzq27kfbc.png" alt="Lion Bidi" class="logo" />
+              <span class="brand-name">Lion Bidi</span>
             </div>
-            <div class="content">
-              <h2>🔑 Password Reset Request</h2>
-              <p>You requested to reset your password for your Lion Bidi account. Use the code below to create a new password:</p>
-              
-              <div class="otp-box">
-                <h3>Your Reset Code</h3>
-                <div class="otp">${otp}</div>
-              </div>
-              
-              <p><span class="highlight">⏰ This code expires in 5 minutes</span> for enhanced security.</p>
-              
-              <div class="steps">
-                <strong>Next Steps:</strong>
-                <ol>
-                  <li>Return to the Lion Bidi app</li>
-                  <li>Enter this 6-digit code</li>
-                  <li>Create your new secure password</li>
-                  <li>Sign in with your new password</li>
-                </ol>
-              </div>
-              
-              <div class="warning">
-                <strong>⚠️ Security Notice:</strong><br>
-                If you didn't request this password reset, please ignore this email. Your password will remain unchanged and your account stays secure.
-              </div>
+            
+            <h1>Reset your password</h1>
+            <p class="footer-text" style="margin-bottom: 30px;">
+              You requested to reset your password for your Lion Bidi account. Use the code below to create a new password:
+            </p>
+            
+            <div class="otp-box">
+              <div class="otp">${otp}</div>
             </div>
-            <div class="footer">
-              <p><strong>© 2025 Lion Bidi</strong> - Premium Quality Products</p>
-              <p>This is an automated message, please do not reply to this email.</p>
-              <p style="margin-top: 15px;">🔒 Your security is our top priority 🔒</p>
+
+            <p class="footer-text">Please make sure you never share this code with anyone.</p>
+            <p class="footer-text"><span class="bold">Note:</span> The code will expire in 10 minutes.</p>
+
+            <div class="footer-copyright">
+               <p class="copyright-text">© 2025 Lion Bidi Company</p>
             </div>
           </div>
         </body>
@@ -773,7 +762,7 @@ const sendEmailOTP = async (
     const template = getEmailTemplate(otp, type);
 
     const mailOptions = {
-      from: `"Lion Bidi - Premium Quality" <lionbidicompany@gmail.com>`,
+      from: `"Lion Bidi" <lionbidicompany@gmail.com>`,
       to: email,
       subject: template.subject,
       html: template.html,

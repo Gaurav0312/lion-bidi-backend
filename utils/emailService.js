@@ -725,7 +725,7 @@ const sendEmailOTP = async (
     const template = getEmailTemplate(otp, type);
 
     const mailOptions = {
-      from: `"Lion Bidi - Premium Quality" <${process.env.EMAIL_USER}>`,
+      from: `"Lion Bidi - Premium Quality" <lionbidicompany@gmail.com>`,
       to: email,
       subject: template.subject,
       html: template.html,

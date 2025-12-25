@@ -10,15 +10,15 @@ const createTransporter = () => {
   }
 
   const transporter = nodemailer.createTransport({
-    host: "smtp-relay.brevo.com", 
-    port: 2525, 
-    secure: false,                   
+    host: "smtp-relay.brevo.com",
+    port: 2525,
+    secure: false,
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS, 
+      pass: process.env.EMAIL_PASS,
     },
     // Keep these settings to prevent timeouts
-    connectionTimeout: 10000, 
+    connectionTimeout: 10000,
     greetingTimeout: 10000,
   });
 
@@ -69,57 +69,105 @@ const getEmailTemplate = (otp, type = "verification") => {
         <head>
           <meta charset="utf-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Email Verification - Lion Bidi</title>
+          <title>Verification Code</title>
           <style>
-            @media only screen and (max-width: 600px) {
-              .container { width: 100% !important; }
-              .content { padding: 20px !important; }
-              .otp { font-size: 24px !important; letter-spacing: 2px !important; }
+            body { 
+              font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; 
+              margin: 0; 
+              padding: 0; 
+              background-color: #ffffff; 
+              color: #2f2f2f; 
             }
-            body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
-            .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
-            .header { background: linear-gradient(135deg, #ea580c, #dc2626, #ea580c); padding: 30px 20px; text-align: center; }
-            .header h1 { color: white; margin: 10px 0 5px 0; font-size: 28px; font-weight: bold; }
-            .header p { color: #fef2f2; margin: 0; font-size: 14px; font-weight: 500; }
-            .content { padding: 40px 30px; text-align: center; }
-            .content h2 { color: #1f2937; margin-bottom: 10px; font-size: 24px; }
-            .content p { color: #6b7280; margin-bottom: 20px; font-size: 16px; }
-            .otp-box { background: linear-gradient(135deg, #fef2f2, #fdf2f8); border: 2px solid #fecaca; border-radius: 12px; padding: 25px; margin: 30px 0; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05); }
-            .otp-box h3 { color: #374151; margin-bottom: 15px; font-size: 18px; }
-            .otp { font-size: 36px; font-weight: bold; color: #dc2626; letter-spacing: 6px; font-family: 'Courier New', monospace; text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1); }
-            .footer { background-color: #f9fafb; padding: 25px 20px; text-align: center; }
-            .footer p { margin: 5px 0; font-size: 12px; color: #6b7280; }
-            .highlight { color: #dc2626; font-weight: 600; }
-            .logo { height: 40px; width: 40px; display: inline-block; margin-bottom: 10px; border-radius: 8px; }
+            .container { 
+              max-width: 500px; 
+              margin: 40px auto; 
+              padding: 20px; 
+              text-align: center;
+            }
+            /* Header Style similar to Hostinger */
+            .header {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              margin-bottom: 40px;
+              gap: 12px; /* Space between logo and text */
+            }
+            .logo { 
+              width: 60px; 
+              height: 60px; 
+              object-fit: contain;
+            }
+            .brand-name {
+              font-size: 36px;
+              font-weight: 700;
+              color: #FF6B35;
+              letter-spacing: -0.5px;
+            }
+            
+            /* Rest of the design */
+            h1 { 
+              font-size: 22px; 
+              font-weight: 700; 
+              margin-bottom: 25px; 
+              color: #1f1f1f;
+            }
+            .otp-box { 
+              border: 1px solid #e5e7eb; 
+              border-radius: 16px; 
+              padding: 40px 20px; 
+              margin-bottom: 30px;
+              background: linear-gradient(135deg, #fff7ed, #fffbeb, #fefce8);
+            }
+            .otp { 
+              font-size: 48px; 
+              font-weight: 700; 
+              color: #FF6B35; /* Hostinger Purple */
+              letter-spacing: 2px;
+              margin: 0;
+            }
+            .footer-text { 
+              font-size: 14px; 
+              color: #6b7280; 
+              margin-bottom: 10px;
+              line-height: 1.5;
+            }
+            .footer-logo { 
+              width: 40px; 
+              height: 40px; 
+              object-fit: contain;
+            }
+            .bold { 
+              font-weight: 600; 
+              color: #1f1f1f; 
+            }
           </style>
         </head>
         <body>
           <div class="container">
             <div class="header">
-              <img
-                src="https://res.cloudinary.com/dxqerqng1/image/upload/v1754660338/campaign_covers/brixv4aazfsuzq27kfbc.png"
-                alt="Lion Bidi"
+              <img 
+                src="https://res.cloudinary.com/dxqerqng1/image/upload/v1754660338/campaign_covers/brixv4aazfsuzq27kfbc.png" 
+                alt="Lion Bidi" 
                 class="logo"
               />
-              <h1>Lion Bidi</h1>
-              <p>Premium Quality</p>
+              <span class="brand-name">Lion Bidi</span>
             </div>
-            <div class="content">
-              <h2>🎉 Welcome to Lion Bidi!</h2>
-              <p>Thank you for joining our premium community. Please verify your email address to complete your registration and start shopping.</p>
-              
-              <div class="otp-box">
-                <h3>Your Verification Code</h3>
-                <div class="otp">${otp}</div>
-              </div>
-              
-              <p><span class="highlight">⏰ This code expires in 10 minutes</span> for your security.</p>
-              <p style="font-size: 14px; color: #9ca3af;">If you didn't create an account, please ignore this email.</p>
+            
+            <h1>Here is your login verification code:</h1>
+            
+            <div class="otp-box">
+              <div class="otp">${otp}</div>
             </div>
-            <div class="footer">
-              <p><strong>© 2025 Lion Bidi</strong> - Premium Quality Products</p>
-              <p>This is an automated message, please do not reply to this email.</p>
-              <p style="margin-top: 15px;">🌟 Thank you for choosing Lion Bidi! 🌟</p>
+
+            <p class="footer-text">
+              Please make sure you never share this code with anyone.
+            </p>
+            <p class="footer-text">
+              <span class="bold">Note:</span> The code will expire in 10 minutes.
+            </p>
+
+            <div style="margin-top: 50px; border-top: 1px solid #f3f4f6; padding-top: 20px;">
+               <p style="font-size: 18px; color: #9ca3af;">© 2025 Lion Bidi Company</p>
             </div>
           </div>
         </body>

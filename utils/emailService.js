@@ -4,22 +4,24 @@ const crypto = require("crypto");
 
 // Email configuration with enhanced error handling
 const createTransporter = () => {
+  // Check if env vars exist
+  if (!process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+    throw new Error("Missing email credentials in environment variables.");
+  }
+
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,              // 👈 Change to 587
-    secure: false,          // 👈 Must be false for port 587
+    host: "smtp-relay.brevo.com", 
+    port: 587, 
+    secure: false,                   
     auth: {
       user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASS,
+      pass: process.env.EMAIL_PASS, 
     },
-    tls: {
-      rejectUnauthorized: false,
-      ciphers: "SSLv3"      // 👈 Sometimes helps with older handshake protocols
-    },
-    connectionTimeout: 10000, // 👈 Fail faster (10 seconds) instead of waiting 2 mins
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
+    // Keep these settings to prevent timeouts
+    connectionTimeout: 50000, 
+    greetingTimeout: 50000,
   });
+
   return transporter;
 };
 

@@ -11,15 +11,15 @@ const createTransporter = () => {
 
   const transporter = nodemailer.createTransport({
     host: "smtp-relay.brevo.com", 
-    port: 587, 
+    port: 2525, 
     secure: false,                   
     auth: {
       user: process.env.EMAIL_USER,
       pass: process.env.EMAIL_PASS, 
     },
     // Keep these settings to prevent timeouts
-    connectionTimeout: 50000, 
-    greetingTimeout: 50000,
+    connectionTimeout: 10000, 
+    greetingTimeout: 10000,
   });
 
   return transporter;
@@ -38,7 +38,7 @@ const sendOrderNotificationEmail = async (email, type, orderData) => {
     const template = getOrderEmailTemplate(type, orderData);
 
     const mailOptions = {
-      from: `"Lion Bidi - Premium Quality" <${process.env.EMAIL_USER}>`,
+      from: `"Lion Bidi - Premium Quality" <lionbidicompany@gmail.com>`,
       to: email,
       subject: template.subject,
       html: template.html,

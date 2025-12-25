@@ -268,7 +268,7 @@ const getEmailTemplate = (otp, type = "verification") => {
       `,
     },
     reset: {
-      subject: "🔑 Password Reset Code - Lion Bidi",
+      subject: "Password Reset Code - Lion Bidi",
       html: `
         <!DOCTYPE html>
         <html>
@@ -491,7 +491,7 @@ const getOrderEmailTemplate = (type, data) => {
               
               <div style="text-align: center;">
                 <a href="${
-                  process.env.ADMIN_PANEL_URL || "http://localhost:3000"
+                  process.env.ADMIN_PANEL_URL || "https://lionbidi.shop/admin"
                 }/admin/payment-verification" 
                    class="action-button">
                   🚀 Go to Admin Panel
@@ -512,8 +512,6 @@ const getOrderEmailTemplate = (type, data) => {
         </html>
       `,
     },
-
-    // Add this template to your existing getOrderEmailTemplate function in the templates object
 
     admin_order_deleted: {
       subject: `🗑️ Order Deleted - ${safeData.orderNumber} | Lion Bidi Admin Alert`,

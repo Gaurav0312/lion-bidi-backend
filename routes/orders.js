@@ -48,8 +48,10 @@ router.get("/admin/pending-verifications", adminAuth, async (req, res) => {
 // @access  Private (Admin only)
 router.get("/:orderId/admin", adminAuth, async (req, res) => {
   try {
-    const order = await Order.findById(req.params.orderId)
-      .populate("userId", "name email phone"); // Populate user data for admin
+    const order = await Order.findById(req.params.orderId).populate(
+      "userId",
+      "name email phone"
+    ); // Populate user data for admin
 
     if (!order) {
       return res.status(404).json({
@@ -84,12 +86,12 @@ router.put("/:orderId/cancel", auth, async (req, res) => {
     const userId = req.user.id;
 
     // Find the order
-    const order = await Order.findById(orderId).populate('user');
-    
+    const order = await Order.findById(orderId).populate("user");
+
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
@@ -97,7 +99,7 @@ router.put("/:orderId/cancel", auth, async (req, res) => {
     if (order.user._id.toString() !== userId) {
       return res.status(403).json({
         success: false,
-        message: "Unauthorized to cancel this order"
+        message: "Unauthorized to cancel this order",
       });
     }
 
@@ -106,7 +108,7 @@ router.put("/:orderId/cancel", auth, async (req, res) => {
     if (!cancellableStatuses.includes(order.status)) {
       return res.status(400).json({
         success: false,
-        message: `Order cannot be cancelled. Current status: ${order.status}`
+        message: `Order cannot be cancelled. Current status: ${order.status}`,
       });
     }
 
@@ -114,7 +116,7 @@ router.put("/:orderId/cancel", auth, async (req, res) => {
     order.status = "cancelled";
     order.cancelledAt = new Date();
     order.cancellationReason = req.body.reason || "Cancelled by customer";
-    
+
     await order.save();
 
     // Optional: Handle refund logic here if payment was processed
@@ -123,14 +125,13 @@ router.put("/:orderId/cancel", auth, async (req, res) => {
     res.json({
       success: true,
       message: "Order cancelled successfully",
-      order: order
+      order: order,
     });
-
   } catch (error) {
     console.error("Error cancelling order:", error);
     res.status(500).json({
       success: false,
-      message: "Failed to cancel order"
+      message: "Failed to cancel order",
     });
   }
 });
@@ -142,20 +143,25 @@ router.put("/:orderId/admin/cancel", adminAuth, async (req, res) => {
     const { reason } = req.body;
 
     const order = await Order.findById(orderId);
-    
+
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
     // Admin can cancel orders in more statuses
-    const cancellableStatuses = ["pending", "payment_submitted", "confirmed", "processing"];
+    const cancellableStatuses = [
+      "pending",
+      "payment_submitted",
+      "confirmed",
+      "processing",
+    ];
     if (!cancellableStatuses.includes(order.status)) {
       return res.status(400).json({
         success: false,
-        message: `Order cannot be cancelled. Current status: ${order.status}`
+        message: `Order cannot be cancelled. Current status: ${order.status}`,
       });
     }
 
@@ -163,24 +169,22 @@ router.put("/:orderId/admin/cancel", adminAuth, async (req, res) => {
     order.cancelledAt = new Date();
     order.cancellationReason = reason || "Cancelled by admin";
     order.cancelledBy = "admin";
-    
+
     await order.save();
 
     res.json({
       success: true,
       message: "Order cancelled successfully by admin",
-      order: order
+      order: order,
     });
-
   } catch (error) {
     console.error("Error cancelling order (admin):", error);
     res.status(500).json({
       success: false,
-      message: "Failed to cancel order"
+      message: "Failed to cancel order",
     });
   }
 });
-
 
 // @desc    Create new order from cart/checkout
 // @route   POST /api/orders/create
@@ -190,7 +194,13 @@ router.post("/create", auth, async (req, res) => {
     console.log("📦 Creating new order for user:", req.user._id);
     console.log("Request body:", JSON.stringify(req.body, null, 2));
 
-    const { cartData, shippingAddress, paymentMethod = "UPI" } = req.body;
+    const {
+      cartData,
+      shippingAddress,
+      paymentMethod = "UPI",
+      deliveryCharges,
+      deliveryInfo,
+    } = req.body;
 
     // Enhanced validation
     if (!cartData) {
@@ -274,7 +284,8 @@ router.post("/create", auth, async (req, res) => {
       (sum, item) => sum + item.totalPrice,
       0
     );
-    const providedTotal = parseFloat(cartData.total) || calculatedSubtotal;
+    const finalDeliveryCharges = parseFloat(deliveryCharges) || 0;
+    const providedTotal = calculatedSubtotal - discount + finalDeliveryCharges;
     const discount =
       parseFloat(cartData.savings) || parseFloat(cartData.discount) || 0;
 
@@ -292,6 +303,8 @@ router.post("/create", auth, async (req, res) => {
       items: processedItems,
       subtotal: calculatedSubtotal,
       discount: discount,
+      deliveryCharges: deliveryCharges || 0,
+      deliveryInfo: deliveryInfo || null,
       total: providedTotal,
       orderNumber: `LB${Date.now()}${Math.floor(Math.random() * 1000)}`,
       orderDate: new Date(),
@@ -377,6 +390,8 @@ router.post("/create", auth, async (req, res) => {
         total: order.total,
         subtotal: order.subtotal,
         discount: order.discount,
+        deliveryCharges: order.deliveryCharges,
+        deliveryInfo: order.deliveryInfo,
         status: order.status,
         orderDate: order.orderDate || order.createdAt,
         items: order.items,
@@ -573,15 +588,13 @@ router.get("/admin/all", adminAuth, async (req, res) => {
 
     const { page = 1, limit = 50, status, search } = req.query;
     let query = {};
-    
-    if (status && status !== 'all') {
+
+    if (status && status !== "all") {
       query.status = status;
     }
 
     if (search) {
-      query.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } }
-      ];
+      query.$or = [{ orderNumber: { $regex: search, $options: "i" } }];
     }
 
     const orders = await Order.find(query)
@@ -605,9 +618,9 @@ router.get("/admin/all", adminAuth, async (req, res) => {
       orders: transformedOrders,
       pagination: {
         current: parseInt(page),
-        pages: Math.ceil(await Order.countDocuments(query) / limit),
-        total: await Order.countDocuments(query)
-      }
+        pages: Math.ceil((await Order.countDocuments(query)) / limit),
+        total: await Order.countDocuments(query),
+      },
     });
   } catch (error) {
     console.error("❌ Error fetching all orders:", error);
@@ -814,7 +827,7 @@ router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
   }
 });
 
-// @desc    Update order status (Admin only) - ADD THIS ROUTE  
+// @desc    Update order status (Admin only) - ADD THIS ROUTE
 // @route   PUT /api/orders/:orderId/admin/update-status
 // @access  Private (Admin only)
 router.put("/:orderId/admin/update-status", adminAuth, async (req, res) => {
@@ -828,34 +841,42 @@ router.put("/:orderId/admin/update-status", adminAuth, async (req, res) => {
     if (!order) {
       return res.status(404).json({
         success: false,
-        message: "Order not found"
+        message: "Order not found",
       });
     }
 
     // Validate status
-    const validStatuses = ['pending', 'pending_payment', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled'];
+    const validStatuses = [
+      "pending",
+      "pending_payment",
+      "confirmed",
+      "processing",
+      "shipped",
+      "delivered",
+      "cancelled",
+    ];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid status"
+        message: "Invalid status",
       });
     }
 
     // Update order status
     order.status = status;
-    
+
     // Update specific timestamp fields based on status
-    switch(status) {
-      case 'confirmed':
+    switch (status) {
+      case "confirmed":
         order.confirmedAt = new Date();
         break;
-      case 'processing':
+      case "processing":
         order.processingAt = new Date();
         break;
-      case 'shipped':
+      case "shipped":
         order.shippedAt = new Date();
         break;
-      case 'delivered':
+      case "delivered":
         order.deliveredAt = new Date();
         break;
     }
@@ -866,8 +887,8 @@ router.put("/:orderId/admin/update-status", adminAuth, async (req, res) => {
     }
     order.statusHistory.push({
       status,
-      updatedBy: req.admin._id || req.admin.username || 'admin',
-      updatedAt: new Date()
+      updatedBy: req.admin._id || req.admin.username || "admin",
+      updatedAt: new Date(),
     });
 
     await order.save();
@@ -877,15 +898,14 @@ router.put("/:orderId/admin/update-status", adminAuth, async (req, res) => {
     res.json({
       success: true,
       message: "Order status updated successfully",
-      order
+      order,
     });
-
   } catch (error) {
     console.error("❌ Error updating order status:", error);
     res.status(500).json({
       success: false,
       message: "Failed to update order status",
-      error: error.message
+      error: error.message,
     });
   }
 });

@@ -284,10 +284,10 @@ router.post("/create", auth, async (req, res) => {
       (sum, item) => sum + item.totalPrice,
       0
     );
-    const finalDeliveryCharges = parseFloat(deliveryCharges) || 0;
-    const providedTotal = calculatedSubtotal - discount + finalDeliveryCharges;
     const discount =
       parseFloat(cartData.savings) || parseFloat(cartData.discount) || 0;
+    const finalDeliveryCharges = parseFloat(deliveryCharges) || 0;
+    const providedTotal = calculatedSubtotal - discount + finalDeliveryCharges;
 
     // Validate totals
     if (providedTotal <= 0) {

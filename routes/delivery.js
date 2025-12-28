@@ -1,15 +1,15 @@
-// routes/deliveryRoutes.js
+// routes/delivery.js
 const express = require('express');
 const router = express.Router();
 const { calculateDeliveryCharges } = require('../utils/deliveryChargeCalculator');
 
 /**
  * POST /api/delivery/calculate
- * Calculate delivery charges for a given pincode
+ * Calculate delivery charges for a given pincode and order amount
  */
 router.post('/calculate', async (req, res) => {
   try {
-    const { pincode } = req.body;
+    const { pincode, orderAmount } = req.body;
 
     if (!pincode) {
       return res.status(400).json({
@@ -18,7 +18,8 @@ router.post('/calculate', async (req, res) => {
       });
     }
 
-    const deliveryInfo = await calculateDeliveryCharges(pincode);
+    // ✅ Pass BOTH pincode and orderAmount
+    const deliveryInfo = await calculateDeliveryCharges(pincode, orderAmount || 0);
 
     return res.status(200).json({
       success: true,

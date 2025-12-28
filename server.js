@@ -10,7 +10,7 @@ const app = express();
 
 // CORS Configuration
 app.use(cors({
-  origin: ['http://localhost:3000','http://localhost:3001','https://lionbidi.vercel.app','https://lionbidi.shop', 'https://www.lionbidi.shop'],
+  origin: ['http://localhost:3000','https://lionbidi.vercel.app','https://lionbidi.shop', 'https://www.lionbidi.shop'],
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization', 'admin-key', 'x-admin-key']
@@ -136,6 +136,15 @@ try {
 }
 
 try {
+  console.log("🚚 Loading delivery routes...");
+  const deliveryRoutes = require('./routes/delivery');
+  app.use('/api/delivery', deliveryRoutes);
+  console.log("✅ Delivery routes loaded");
+} catch (error) {
+  console.error("❌ Error loading delivery routes:", error.message);
+}
+
+try {
   console.log("📋 Loading review routes...");
   const reviewRoutes = require('./routes/reviews');
   app.use('/api/reviews', reviewRoutes);
@@ -154,7 +163,7 @@ app.use((req, res) => {
   res.status(404).json({ 
     success: false, 
     message: `Route ${req.method} ${req.path} not found`,
-    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders','/api/reviews', '/api/users', '/api/cart', '/api/wishlist', '/api/contact', '/api/address', '/api/categories']
+    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders','/api/reviews', '/api/users', '/api/cart', '/api/wishlist', '/api/contact', '/api/address','/api/delivery', '/api/categories']
   });
 });
 

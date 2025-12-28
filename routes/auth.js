@@ -9,8 +9,6 @@ const { generateOTP, sendEmailOTP } = require("../utils/emailService");
 const bcrypt = require("bcryptjs");
 const axios = require("axios");
 
-// Google OAuth callback handler
-// Fixed Google OAuth callback handler
 
 router.post("/google/callback", async (req, res) => {
   try {

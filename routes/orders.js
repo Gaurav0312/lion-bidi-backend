@@ -300,6 +300,9 @@ router.post("/create", auth, async (req, res) => {
     // Create order data
     const orderData = {
       userId: req.user._id,
+      userName: req.user.name || shippingAddress.name,
+      userEmail: req.user.email || shippingAddress.email,
+      userPhone: req.user.phone || shippingAddress.phone,
       items: processedItems,
       subtotal: calculatedSubtotal,
       discount: discount,

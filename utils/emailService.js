@@ -171,7 +171,7 @@ const getEmailTemplate = (otp, type = "verification") => {
       <h1>Here is your login verification code:</h1>
 
       <div class="otp-box">
-        <div class="otp">123456</div>
+        <div class="otp">${otp}</div>
       </div>
 
       <p class="footer-text">

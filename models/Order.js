@@ -185,6 +185,24 @@ const orderSchema = new mongoose.Schema(
       index: true,
     },
 
+    userName: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+
+    userEmail: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+
+    userPhone: {
+      type: String,
+      trim: true,
+    },
+
     items: {
       type: [orderItemSchema],
       required: true,

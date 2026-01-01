@@ -3,6 +3,21 @@ const mongoose = require("mongoose");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
+// ================== Delivery Info Schema ==================
+const deliveryInfoSchema = new mongoose.Schema(
+  {
+    charges: { type: Number, default: 0 },
+    baseCharges: { type: Number, default: 0 },
+    distance: { type: Number, default: null },
+    state: { type: String, trim: true },
+    district: { type: String, trim: true },
+    description: { type: String, trim: true },
+    isFreeDelivery: { type: Boolean, default: false },
+    freeDeliveryThreshold: { type: Number, default: 1499 },
+  },
+  { _id: false }
+);
+
 // ================== Address Schema ==================
 const addressSchema = new mongoose.Schema(
   {
@@ -11,7 +26,11 @@ const addressSchema = new mongoose.Schema(
     state: { type: String, required: [true, "State is required"] },
     zipCode: { type: String, required: [true, "ZIP/Pin code is required"] },
     country: { type: String, default: "India" },
+    locality: { type: String, default: "" }, // Added support for locality
+    landmark: { type: String, default: "" },
     isDefault: { type: Boolean, default: false },
+    deliveryCharges: { type: Number, default: 0 },
+    deliveryInfo: { type: deliveryInfoSchema, default: null },
   },
   { _id: true }
 );
@@ -90,6 +109,10 @@ const userSchema = new mongoose.Schema(
       state: String,
       zipCode: String,
       country: { type: String, default: "India" },
+      locality: String,
+      landmark: String,
+      deliveryCharges: { type: Number, default: 0 },
+      deliveryInfo: { type: deliveryInfoSchema, default: null },
     },
     addresses: [addressSchema],
 
@@ -128,7 +151,7 @@ const userSchema = new mongoose.Schema(
     isPhoneVerified: { type: Boolean, default: false },
 
     // E-commerce features - FIXED
-    wishlist: [wishlistItemSchema], // ✅ Now uses the proper schema with full product details
+    wishlist: [wishlistItemSchema],
     cart: [cartItemSchema],
     orders: [{ type: mongoose.Schema.Types.ObjectId, ref: "Order" }],
 

@@ -1,144 +1,36 @@
 // routes/admin.js
 const express = require('express');
-const jwt = require('jsonwebtoken');
-const Admin = require('../models/Admin');
 const adminAuth = require('../middleware/adminAuth');
+const adminController = require('../controllers/adminController');
 
 const router = express.Router();
 
-// Main admin login (prioritized)
-router.post('/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
+// ==================== AUTH ROUTES ====================
+router.post('/login', adminController.login);
+router.post('/simple-login', adminController.simpleLogin);
+router.get('/verify', adminController.verifyToken);
 
-    if (!username || !password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Username and password are required'
-      });
-    }
+// ==================== DASHBOARD ====================
+router.get('/dashboard', adminAuth, adminController.getDashboard);
 
-    // Find admin by username or email
-    const admin = await Admin.findOne({
-      $or: [
-        { username: username.toLowerCase() },
-        { email: username.toLowerCase() }
-      ],
-      isActive: true
-    }).select('+password');
+// ==================== ORDER MANAGEMENT ====================
+router.get('/orders', adminAuth, adminController.getOrders);
+router.put('/orders/:orderId/status', adminAuth, adminController.updateOrderStatus);
 
-    if (!admin) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
+// ==================== USER MANAGEMENT ====================
+router.get('/users', adminAuth, adminController.getUsers);
+router.put('/users/:userId/toggle-status', adminAuth, adminController.toggleUserStatus);
 
-    // Check password
-    const isValidPassword = await admin.comparePassword(password);
-    if (!isValidPassword) {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid credentials'
-      });
-    }
+// ==================== ANALYTICS ====================
+router.get('/analytics', adminAuth, adminController.getAnalytics);
 
-    // Update last login
-    admin.lastLogin = new Date();
-    await admin.save();
-
-    // Generate JWT token
-    const token = jwt.sign(
-      {
-        id: admin._id,
-        username: admin.username,
-        role: admin.role,
-        permissions: admin.permissions
-      },
-      process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      success: true,
-      message: 'Login successful',
-      token,
-      admin: {
-        id: admin._id,
-        username: admin.username,
-        email: admin.email,
-        role: admin.role,
-        permissions: admin.permissions,
-        lastLogin: admin.lastLogin
-      }
-    });
-  } catch (error) {
-    console.error('Admin login error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Login failed'
-    });
-  }
-});
-
-// Fallback simple login (for emergency access)
-router.post('/simple-login', (req, res) => {
-  try {
-    const { password } = req.body;
-    if (!password) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password is required'
-      });
-    }
-    const adminPassword = process.env.ADMIN_PASSWORD;
-    if (password === adminPassword) {
-      // Here: create a JWT!
-      const token = jwt.sign(
-        {
-          username: 'Admin',
-          role: 'admin',
-          method: 'simple'
-        },
-        process.env.ADMIN_JWT_SECRET || process.env.JWT_SECRET,
-        { expiresIn: '24h' }
-      );
-      return res.json({
-        success: true,
-        token,
-        admin: {
-          username: 'Admin',
-          role: 'admin',
-          method: 'simple'
-        }
-      });
-    } else {
-      return res.status(401).json({
-        success: false,
-        message: 'Invalid password'
-      });
-    }
-  } catch (error) {
-    return res.status(500).json({
-      success: false,
-      message: 'Internal server error'
-    });
-  }
-});
-
-
-// Verify admin token
-router.get('/verify', adminAuth, (req, res) => {
-  res.json({
-    success: true,
-    admin: req.admin
-  });
-});
+// ==================== ADMIN MANAGEMENT ====================
 
 // Create new admin (super admin only)
 router.post('/create', adminAuth, async (req, res) => {
   try {
-    // Check if requesting admin is super admin
+    const Admin = require('../models/Admin');
+    
     if (req.admin.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
@@ -148,7 +40,6 @@ router.post('/create', adminAuth, async (req, res) => {
 
     const { username, email, password, permissions, role } = req.body;
 
-    // Validate input
     if (!username || !email || !password) {
       return res.status(400).json({
         success: false,
@@ -156,10 +47,10 @@ router.post('/create', adminAuth, async (req, res) => {
       });
     }
 
-    // Check if admin already exists
+    // Check if admin already exists - use lean() for speed
     const existingAdmin = await Admin.findOne({
       $or: [{ username }, { email }]
-    });
+    }).lean();
 
     if (existingAdmin) {
       return res.status(400).json({
@@ -175,7 +66,7 @@ router.post('/create', adminAuth, async (req, res) => {
       password,
       role: role || 'admin',
       permissions: permissions || ['payment_verification'],
-      createdBy: req.admin._id
+      createdBy: req.admin.id
     });
 
     await newAdmin.save();
@@ -203,6 +94,8 @@ router.post('/create', adminAuth, async (req, res) => {
 // Get all admins (super admin only)
 router.get('/list', adminAuth, async (req, res) => {
   try {
+    const Admin = require('../models/Admin');
+    
     if (req.admin.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
@@ -210,7 +103,11 @@ router.get('/list', adminAuth, async (req, res) => {
       });
     }
 
-    const admins = await Admin.find({}).select('-password').populate('createdBy', 'username');
+    // Use lean() for faster queries
+    const admins = await Admin.find({})
+      .select('-password')
+      .populate('createdBy', 'username')
+      .lean();
     
     res.json({
       success: true,
@@ -225,9 +122,11 @@ router.get('/list', adminAuth, async (req, res) => {
   }
 });
 
-// Update admin status
+// Update admin status (super admin only)
 router.put('/:adminId/toggle-status', adminAuth, async (req, res) => {
   try {
+    const Admin = require('../models/Admin');
+    
     if (req.admin.role !== 'super_admin') {
       return res.status(403).json({
         success: false,
@@ -235,7 +134,9 @@ router.put('/:adminId/toggle-status', adminAuth, async (req, res) => {
       });
     }
 
+    // Use findByIdAndUpdate for atomic operation
     const admin = await Admin.findById(req.params.adminId);
+    
     if (!admin) {
       return res.status(404).json({
         success: false,
@@ -264,385 +165,16 @@ router.put('/:adminId/toggle-status', adminAuth, async (req, res) => {
   }
 });
 
-router.get('/dashboard', adminAuth, async (req, res) => {
-  try {
-    const Order = require('../models/Order');
-    const User = require('../models/User');
-    
-    console.log('📊 Fetching dashboard data...');
-    
-    // Get today's date range
-    const today = new Date();
-    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
-
-    // Fetch all stats in parallel for better performance
-    const [
-      totalOrders,
-      pendingPayments,
-      totalUsers,
-      verifiedToday,
-      rejectedToday,
-      totalRevenueResult,
-      recentOrders,
-      pendingVerifications
-    ] = await Promise.all([
-      // Total orders count
-      Order.countDocuments({}),
-      
-      // Pending payments count - check both possible statuses
-      Order.countDocuments({ 
-        $or: [
-          { 'payment.paymentStatus': 'pending_verification' },
-          { 'payment.paymentStatus': 'submitted' },
-          { status: 'pending_payment' }
-        ]
-      }),
-      
-      // Total users count
-      User.countDocuments({}),
-      
-      // Verified today count
-      Order.countDocuments({
-        'payment.verificationDate': { $gte: startOfDay, $lt: endOfDay },
-        'payment.verified': true
-      }),
-      
-      // Rejected today count
-      Order.countDocuments({
-        'payment.verificationDate': { $gte: startOfDay, $lt: endOfDay },
-        'payment.verified': false
-      }),
-      
-      // Total revenue from confirmed/delivered orders
-      Order.aggregate([
-        { 
-          $match: { 
-            status: { $in: ['confirmed', 'shipped', 'delivered'] } 
-          } 
-        },
-        { 
-          $group: { 
-            _id: null, 
-            total: { $sum: '$total' } 
-          } 
-        }
-      ]),
-      
-      // Recent orders (last 10)
-      Order.find({})
-        .populate('userId', 'name email phone')
-        .sort({ orderDate: -1, createdAt: -1 })
-        .limit(10)
-        .lean(),
-      
-      // Pending verifications
-      Order.find({
-        $or: [
-          { 'payment.paymentStatus': 'pending_verification' },
-          { 'payment.paymentStatus': 'submitted' }
-        ]
-      })
-        .populate('userId', 'name email phone')
-        .sort({ 'payment.submittedAt': -1, createdAt: -1 })
-        .limit(10)
-        .lean()
-    ]);
-
-    const totalRevenue = totalRevenueResult[0]?.total || 0;
-
-    // Transform the data to match frontend expectations
-    const transformedRecentOrders = recentOrders.map(order => ({
-      ...order,
-      user: order.userId,
-      orderDate: order.orderDate || order.createdAt
-    }));
-
-    const transformedPendingVerifications = pendingVerifications.map(order => ({
-      ...order,
-      user: order.userId,
-    }));
-
-    const dashboardData = {
-      stats: {
-        totalOrders,
-        pendingPayments,
-        totalRevenue,
-        totalUsers,
-        verifiedToday,
-        rejectedToday
-      },
-      recentOrders: transformedRecentOrders,
-      pendingVerifications: transformedPendingVerifications
-    };
-
-    console.log('✅ Dashboard stats:', {
-      totalOrders,
-      pendingPayments,
-      totalRevenue,
-      totalUsers,
-      verifiedToday,
-      rejectedToday,
-      recentOrdersCount: transformedRecentOrders.length,
-      pendingVerificationsCount: transformedPendingVerifications.length
-    });
-
-    res.json({
-      success: true,
-      data: dashboardData
-    });
-  } catch (error) {
-    console.error('❌ Dashboard fetch error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch dashboard data',
-      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
-    });
-  }
-});
-
-// Get all orders for admin
-router.get('/orders', adminAuth, async (req, res) => {
-  try {
-    const Order = require('../models/Order');
-    const { page = 1, limit = 50, status, search } = req.query;
-
-    let query = {};
-    
-    if (status && status !== 'all') {
-      query.status = status;
-    }
-
-    if (search) {
-      query.$or = [
-        { orderNumber: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const orders = await Order.find(query)
-      .populate('userId', 'name email phone')
-      .sort({ orderDate: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    const total = await Order.countDocuments(query);
-
-    // Transform data to match frontend expectations
-    const transformedOrders = orders.map(order => ({
-      ...order.toObject(),
-      user: order.userId,
-      orderDate: order.orderDate || order.createdAt
-    }));
-
-    res.json({
-      success: true,
-      orders: transformedOrders,
-      pagination: {
-        current: parseInt(page),
-        pages: Math.ceil(total / limit),
-        total
-      }
-    });
-  } catch (error) {
-    console.error('Orders fetch error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch orders',
-      error: error.message
-    });
-  }
-});
-
-// Update order status
-router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
-  try {
-    const Order = require('../models/Order');
-    const { status } = req.body;
-
-    const order = await Order.findById(req.params.orderId);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    order.status = status;
-    order.statusHistory = order.statusHistory || [];
-    order.statusHistory.push({
-      status,
-      updatedBy: req.admin._id || req.admin.username,
-      updatedAt: new Date()
-    });
-
-    await order.save();
-
-    res.json({
-      success: true,
-      message: 'Order status updated successfully',
-      order
-    });
-  } catch (error) {
-    console.error('Order status update error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update order status'
-    });
-  }
-});
-
-// When updating order status
-router.put('/orders/:orderId/status', adminAuth, async (req, res) => {
-  try {
-    const Order = require('../models/Order');
-    const { status } = req.body;
-
-    const order = await Order.findById(req.params.orderId);
-    if (!order) {
-      return res.status(404).json({
-        success: false,
-        message: 'Order not found'
-      });
-    }
-
-    const oldStatus = order.status;
-    order.status = status;
-    order.statusHistory = order.statusHistory || [];
-    order.statusHistory.push({
-      status,
-      updatedBy: req.admin._id || req.admin.username,
-      updatedAt: new Date()
-    });
-
-    await order.save();
-
-    res.json({
-      success: true,
-      message: 'Order status updated successfully',
-      order
-    });
-  } catch (error) {
-    console.error('Order status update error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update order status'
-    });
-  }
-});
-
-// Get all users for admin
-router.get('/users', adminAuth, async (req, res) => {
-  try {
-    const User = require('../models/User');
-    const Order = require('../models/Order');
-    
-    const { page = 1, limit = 50, status, search } = req.query;
-
-    let query = {};
-    
-    if (status && status !== 'all') {
-      query.isActive = status === 'active';
-    }
-
-    if (search) {
-      query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } },
-        { phone: { $regex: search, $options: 'i' } }
-      ];
-    }
-
-    const users = await User.find(query)
-      .select('-password')
-      .sort({ createdAt: -1 })
-      .limit(limit * 1)
-      .skip((page - 1) * limit);
-
-    // Add order statistics for each user
-    const usersWithStats = await Promise.all(users.map(async (user) => {
-      const orderStats = await Order.aggregate([
-        { $match: { userId: user._id } },
-        { 
-          $group: { 
-            _id: null, 
-            totalOrders: { $sum: 1 },
-            totalSpent: { $sum: '$total' }
-          }
-        }
-      ]);
-
-      return {
-        ...user.toObject(),
-        totalOrders: orderStats[0]?.totalOrders || 0,
-        totalSpent: orderStats[0]?.totalSpent || 0
-      };
-    }));
-
-    const total = await User.countDocuments(query);
-
-    res.json({
-      success: true,
-      users: usersWithStats,
-      pagination: {
-        current: parseInt(page),
-        pages: Math.ceil(total / limit),
-        total
-      }
-    });
-  } catch (error) {
-    console.error('Users fetch error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch users',
-      error: error.message
-    });
-  }
-});
-
-// Toggle user status
-router.put('/users/:userId/toggle-status', adminAuth, async (req, res) => {
-  try {
-    const User = require('../models/User');
-    const { isActive } = req.body;
-
-    const user = await User.findById(req.params.userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
-    }
-
-    user.isActive = isActive;
-    await user.save();
-
-    res.json({
-      success: true,
-      message: `User ${isActive ? 'activated' : 'deactivated'} successfully`,
-      user: {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        isActive: user.isActive
-      }
-    });
-  } catch (error) {
-    console.error('User status toggle error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update user status'
-    });
-  }
-});
-
+// ==================== NOTIFICATIONS ====================
 router.get('/notifications', adminAuth, async (req, res) => {
   try {
+    const Order = require('../models/Order');
     const notifications = [];
     
     // Check for urgent pending payments
     const urgentPayments = await Order.countDocuments({
       'payment.paymentStatus': 'pending_verification',
-      'payment.submittedAt': { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) } // Older than 24h
+      'payment.submittedAt': { $lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }
     });
     
     if (urgentPayments > 0) {
@@ -665,12 +197,14 @@ router.get('/notifications', adminAuth, async (req, res) => {
   }
 });
 
-// Settings management
+// ==================== SETTINGS MANAGEMENT ====================
+
+// Get settings
 router.get('/settings', adminAuth, async (req, res) => {
   try {
-    const Settings = require('../models/Settings'); // You'll need to create this model
+    const Settings = require('../models/Settings');
     
-    let settings = await Settings.findOne({ type: 'admin' });
+    let settings = await Settings.findOne({ type: 'admin' }).lean();
     
     // Default settings if none exist
     if (!settings) {
@@ -698,8 +232,8 @@ router.get('/settings', adminAuth, async (req, res) => {
         payment: {
           upiId: '9589773525@ptsbi',
           bankName: 'State Bank of India',
-          accountNumber: '****7890',
-          ifscCode: 'SBIN0123456',
+          accountNumber: '43075322727',
+          ifscCode: 'SBIN000034',
           enableUPI: true,
           enableBankTransfer: true
         }
@@ -732,7 +266,7 @@ router.put('/settings', adminAuth, async (req, res) => {
     }
 
     settings[section] = data;
-    settings.updatedBy = req.admin._id || req.admin.username;
+    settings.updatedBy = req.admin.id;
     settings.updatedAt = new Date();
 
     await settings.save();
@@ -751,6 +285,8 @@ router.put('/settings', adminAuth, async (req, res) => {
   }
 });
 
+// ==================== PASSWORD MANAGEMENT ====================
+
 // Change admin password
 router.put('/change-password', adminAuth, async (req, res) => {
   try {
@@ -763,9 +299,8 @@ router.put('/change-password', adminAuth, async (req, res) => {
       });
     }
 
-    // For simple login method, skip current password validation
+    // For simple login method
     if (req.admin.method === 'simple') {
-      // Update environment variable or handle simple login password change
       return res.json({
         success: true,
         message: 'Password updated successfully for simple login'
@@ -805,115 +340,6 @@ router.put('/change-password', adminAuth, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to change password'
-    });
-  }
-});
-
-// Analytics data
-router.get('/analytics', adminAuth, async (req, res) => {
-  try {
-    const Order = require('../models/Order');
-    const User = require('../models/User');
-    
-    const { period = '30' } = req.query; // days
-    const daysBack = parseInt(period);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - daysBack);
-
-    // Sales analytics
-    const salesData = await Order.aggregate([
-      {
-        $match: {
-          orderDate: { $gte: startDate },
-          status: { $in: ['confirmed', 'shipped', 'delivered'] }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$orderDate' },
-            month: { $month: '$orderDate' },
-            day: { $dayOfMonth: '$orderDate' }
-          },
-          revenue: { $sum: '$total' },
-          orders: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
-    ]);
-
-    // Top selling products
-    const topProducts = await Order.aggregate([
-      {
-        $match: {
-          orderDate: { $gte: startDate },
-          status: { $in: ['confirmed', 'shipped', 'delivered'] }
-        }
-      },
-      { $unwind: '$items' },
-      {
-        $group: {
-          _id: '$items.name',
-          totalSold: { $sum: '$items.quantity' },
-          revenue: { $sum: { $multiply: ['$items.quantity', '$items.price'] } }
-        }
-      },
-      { $sort: { totalSold: -1 } },
-      { $limit: 10 }
-    ]);
-
-    // User growth
-    const userGrowth = await User.aggregate([
-      {
-        $match: {
-          createdAt: { $gte: startDate }
-        }
-      },
-      {
-        $group: {
-          _id: {
-            year: { $year: '$createdAt' },
-            month: { $month: '$createdAt' },
-            day: { $dayOfMonth: '$createdAt' }
-          },
-          newUsers: { $sum: 1 }
-        }
-      },
-      { $sort: { '_id.year': 1, '_id.month': 1, '_id.day': 1 } }
-    ]);
-
-    // Payment method stats
-    const paymentStats = await Order.aggregate([
-      {
-        $match: {
-          orderDate: { $gte: startDate },
-          status: { $in: ['confirmed', 'shipped', 'delivered'] }
-        }
-      },
-      {
-        $group: {
-          _id: '$payment.method',
-          count: { $sum: 1 },
-          revenue: { $sum: '$total' }
-        }
-      }
-    ]);
-
-    res.json({
-      success: true,
-      data: {
-        salesData,
-        topProducts,
-        userGrowth,
-        paymentStats,
-        period: daysBack
-      }
-    });
-  } catch (error) {
-    console.error('Analytics fetch error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch analytics data'
     });
   }
 });

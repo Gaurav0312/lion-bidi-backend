@@ -34,14 +34,16 @@ async function connectDB() {
 connectDB();
 
 // Health check route
-app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    message: 'Server is running!',
-    timestamp: new Date().toISOString()
+app.route('/health')
+  .get((req, res) => {
+    res.status(200).json({
+      message: 'Server is running!',
+      timestamp: new Date().toISOString()
+    });
+  })
+  .head((req, res) => {
+    res.sendStatus(200);
   });
-});
-
-
 
 
 // ✅ REGISTER ALL ROUTES (before error handlers)

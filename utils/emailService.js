@@ -513,6 +513,67 @@ const getOrderEmailTemplate = (type, data) => {
       `,
     },
 
+    admin_order_deleted: {
+      subject: `🗑️ Order Deleted - ${safeData.orderNumber} | Lion Bidi Admin Alert`,
+      html: `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Order Deleted - Lion Bidi Admin</title>
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif; margin: 0; padding: 0; background-color: #f5f5f5; line-height: 1.6; }
+        .container { max-width: 600px; margin: 0 auto; background-color: white; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        .header { background: linear-gradient(135deg, #dc2626, #7f1d1d); padding: 30px 20px; text-align: center; color: white; }
+        .content { padding: 30px; }
+        .alert { background: #fef2f2; border: 2px solid #ef4444; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center; }
+        .order-details { background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0; }
+        .footer { background-color: #f9fafb; padding: 20px; text-align: center; color: #6b7280; font-size: 12px; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="header">
+          <h1>🗑️ Order Deletion Alert</h1>
+          <p>Lion Bidi Admin Notification</p>
+        </div>
+        
+        <div class="content">
+          <div class="alert">
+            <h2>⚠️ Order Deleted</h2>
+            <p>A customer has deleted their order.</p>
+            <p><strong>Order: ${safeData.orderNumber}</strong></p>
+          </div>
+          
+          <div class="order-details">
+            <h3>📋 Deletion Details</h3>
+            <p><strong>Customer:</strong> ${safeData.customerName}</p>
+            <p><strong>Email:</strong> ${safeData.customerEmail}</p>
+            <p><strong>Order Number:</strong> ${safeData.orderNumber}</p>
+            <p><strong>Deleted At:</strong> ${
+              safeData.deletedAt
+                ? new Date(safeData.deletedAt).toLocaleString("en-IN")
+                : "Unknown"
+            }</p>
+            <p><strong>User ID:</strong> ${safeData.deletedBy || "Unknown"}</p>
+          </div>
+          
+          <p style="color: #6b7280; font-size: 14px; text-align: center;">
+            This order was deleted by the customer and has been removed from the system.
+          </p>
+        </div>
+        
+        <div class="footer">
+          <p><strong>© 2025 Lion Bidi</strong> - Admin Notification System</p>
+          <p>This is an automated notification. Please do not reply to this email.</p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `,
+    },
+
     order_confirmed: {
       subject: `✅ Order Confirmed - ${safeData.orderNumber} | Lion Bidi`,
       html: `

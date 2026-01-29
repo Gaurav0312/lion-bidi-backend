@@ -525,31 +525,31 @@ router.delete("/:orderId", auth, async (req, res) => {
     }
 
     // Optional: Send admin notification about deleted order
-    try {
-      if (
-        process.env.ADMIN_EMAIL &&
-        typeof sendOrderNotificationEmail === "function"
-      ) {
-        await sendOrderNotificationEmail(
-          process.env.ADMIN_EMAIL,
-          "admin_order_deleted",
-          {
-            orderNumber: orderNumber,
-            customerName: customerName,
-            customerEmail: req.user.email || "Unknown",
-            deletedAt: new Date(),
-            deletedBy: req.user._id,
-          }
-        );
-        console.log("Admin notification sent for deleted order");
-      }
-    } catch (emailError) {
-      console.log(
-        "Note: Could not send admin notification for deletion:",
-        emailError.message
-      );
-      // Don't fail the deletion if email fails
-    }
+    // try {
+    //   if (
+    //     process.env.ADMIN_EMAIL &&
+    //     typeof sendOrderNotificationEmail === "function"
+    //   ) {
+    //     await sendOrderNotificationEmail(
+    //       process.env.ADMIN_EMAIL,
+    //       "admin_order_deleted",
+    //       {
+    //         orderNumber: orderNumber,
+    //         customerName: customerName,
+    //         customerEmail: req.user.email || "Unknown",
+    //         deletedAt: new Date(),
+    //         deletedBy: req.user._id,
+    //       }
+    //     );
+    //     console.log("Admin notification sent for deleted order");
+    //   }
+    // } catch (emailError) {
+    //   console.log(
+    //     "Note: Could not send admin notification for deletion:",
+    //     emailError.message
+    //   );
+    //   // Don't fail the deletion if email fails
+    // }
 
     console.log(
       `✅ Order deleted successfully: ${orderNumber} by user ${req.user._id}`

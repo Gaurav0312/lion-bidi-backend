@@ -778,7 +778,7 @@ router.post("/:orderId/confirm-payment", auth, async (req, res) => {
   }
 });
 
-// @desc    Admin route to verify payments
+// @desc    Admin route to verify or reject payments
 // @route   POST /api/orders/:orderId/admin/verify-payment
 // @access  Private (Admin only)
 router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
@@ -786,7 +786,8 @@ router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
     const { orderId } = req.params;
     const { verified, notes } = req.body;
 
-    console.log(`🔍 Admin verifying payment for order: ${orderId}`);
+    console.log(`🔍 Admin ${verified ? 'verifying' : 'rejecting'} payment for order: ${orderId}`);
+    console.log('Request body:', { verified, notes });
 
     const order = await Order.findById(orderId);
     if (!order) {
@@ -796,36 +797,92 @@ router.post("/:orderId/admin/verify-payment", adminAuth, async (req, res) => {
       });
     }
 
-    // Update payment status
-    order.payment.paymentStatus = verified ? "verified" : "rejected";
-    order.payment.verificationDate = new Date();
-    order.payment.verificationNotes = notes || "";
-    order.payment.verifiedBy = req.admin.id || req.admin.username;
+    // Log current order status
+    console.log('Current order status:', {
+      orderStatus: order.status,
+      paymentStatus: order.payment?.paymentStatus
+    });
 
     if (verified) {
+      // VERIFY PAYMENT
+      order.payment.paymentStatus = "verified";
+      order.payment.verificationDate = new Date();
+      order.payment.verificationNotes = notes || "Payment verified by admin";
+      order.payment.verifiedBy = req.admin.id || req.admin.username || req.admin._id;
+      order.payment.verifiedAt = new Date();
+      
       order.status = "confirmed";
       order.confirmedAt = new Date();
+
+      console.log('✅ Verifying payment and confirming order');
+    } else {
+      // REJECT PAYMENT
+      if (!notes || !notes.trim()) {
+        return res.status(400).json({
+          success: false,
+          message: "Rejection reason is required when rejecting payment"
+        });
+      }
+
+      order.payment.paymentStatus = "verification_failed";
+      order.payment.verificationDate = new Date();
+      order.payment.verificationNotes = notes.trim();
+      order.payment.verifiedBy = req.admin.id || req.admin.username || req.admin._id;
+      order.payment.verifiedAt = new Date();
+      
+      order.status = "cancelled";
+      order.cancelledAt = new Date();
+      order.cancellationReason = `Payment rejected: ${notes}`;
+
+      console.log('❌ Rejecting payment and cancelling order');
     }
 
     await order.save();
 
-    console.log(
-      `✅ Payment ${verified ? "verified" : "rejected"} for order: ${
-        order.orderNumber
-      }`
-    );
+    console.log('Order updated successfully:', {
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      newStatus: order.status,
+      newPaymentStatus: order.payment.paymentStatus
+    });
+
+    // Send appropriate email notification
+    try {
+      if (verified) {
+        await sendCustomerConfirmationEmail(order);
+        console.log('✅ Verification email sent to customer');
+      } else {
+        await sendCustomerPaymentFailedEmail(order);
+        console.log('✅ Rejection email sent to customer');
+      }
+    } catch (emailError) {
+      console.log('Note: Could not send email notification:', emailError.message);
+      // Don't fail the verification/rejection if email fails
+    }
 
     res.json({
       success: true,
       message: verified
         ? "Payment verified successfully"
-        : "Payment verification rejected",
+        : "Payment rejected successfully",
+      order: {
+        _id: order._id,
+        orderNumber: order.orderNumber,
+        status: order.status,
+        payment: {
+          paymentStatus: order.payment.paymentStatus,
+          verificationNotes: order.payment.verificationNotes
+        }
+      }
     });
   } catch (error) {
-    console.error("❌ Error verifying payment:", error);
+    console.error("❌ Error in verify-payment route:", error);
+    console.error("Error stack:", error.stack);
+    
     res.status(500).json({
       success: false,
-      message: "Failed to verify payment",
+      message: "Failed to update payment status",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined
     });
   }
 });

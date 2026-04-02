@@ -491,7 +491,7 @@ const getOrderEmailTemplate = (type, data) => {
               
               <div style="text-align: center;">
                 <a href="${
-                  process.env.ADMIN_PANEL_URL || "https://lionbidi.shop/admin"
+                  process.env.ADMIN_PANEL_URL || "https://lionbidi.shop/admin" || "https://lionbidi.in/admin"
                 }/admin/payment-verification" 
                    class="action-button">
                   🚀 Go to Admin Panel

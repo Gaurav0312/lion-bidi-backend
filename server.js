@@ -8,6 +8,13 @@ const dotenv = require('dotenv');
 dotenv.config();
 const app = express();
 
+// Log JWT configuration on startup (helps debug token expiry issues)
+console.log('🔐 JWT Configuration:', {
+  JWT_EXPIRE: process.env.JWT_EXPIRE || '30d (default)',
+  JWT_SECRET: process.env.JWT_SECRET ? '✅ Set' : '❌ Missing',
+  ADMIN_JWT_SECRET: process.env.ADMIN_JWT_SECRET ? '✅ Set' : '❌ Missing',
+});
+
 // CORS Configuration
 app.use(cors({
   origin: ['http://localhost:3000','https://lionbidi.vercel.app','https://lionbidi.shop', 'https://www.lionbidi.shop','https://lionbidi.in', 'https://www.lionbidi.in'],
@@ -155,6 +162,15 @@ try {
   console.error("❌ Error loading review routes:", error.message);
 }
 
+try {
+  console.log("🏪 Loading wholesale routes...");
+  const wholesaleRoutes = require('./routes/wholesale');
+  app.use('/api/wholesale', wholesaleRoutes);
+  console.log("✅ Wholesale routes loaded");
+} catch (error) {
+  console.error("❌ Error loading wholesale routes:", error.message);
+}
+
 console.log("🎯 All routes registered successfully!");
 
 
@@ -165,7 +181,7 @@ app.use((req, res) => {
   res.status(404).json({ 
     success: false, 
     message: `Route ${req.method} ${req.path} not found`,
-    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders','/api/reviews', '/api/users', '/api/cart', '/api/wishlist', '/api/contact', '/api/address','/api/delivery', '/api/categories']
+    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders','/api/reviews', '/api/users', '/api/cart', '/api/wishlist', '/api/contact', '/api/address','/api/delivery', '/api/categories', '/api/wholesale']
   });
 });
 

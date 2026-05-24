@@ -7,7 +7,11 @@ const auth = async (req, res, next) => {
     const token = req.header('Authorization')?.replace('Bearer ', '');
 
     if (!token) {
-      return res.status(401).json({ message: 'Access denied. No token provided.' });
+      return res.status(401).json({
+        success: false,
+        message: 'Access denied. No token provided.',
+        code: 'NO_TOKEN'
+      });
     }
 
     // ✅ Verify token using env secret only
@@ -15,14 +19,39 @@ const auth = async (req, res, next) => {
     const user = await User.findById(decoded.id).select('-password');
 
     if (!user) {
-      return res.status(401).json({ message: 'Token is not valid' });
+      return res.status(401).json({
+        success: false,
+        message: 'User not found for this token',
+        code: 'USER_NOT_FOUND'
+      });
     }
 
     req.user = user;
     next();
   } catch (error) {
-    console.error("Auth middleware error:", error.message);
-    return res.status(401).json({ message: 'Token is not valid' });
+    console.error('❌ JWT verification failed:', error.message);
+
+    if (error.name === 'TokenExpiredError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Token has expired. Please login again.',
+        code: 'TOKEN_EXPIRED'
+      });
+    }
+
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid token',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    return res.status(401).json({
+      success: false,
+      message: 'Token verification failed',
+      code: 'AUTH_ERROR'
+    });
   }
 };
 

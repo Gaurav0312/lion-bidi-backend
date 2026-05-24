@@ -154,6 +154,15 @@ try {
 }
 
 try {
+  console.log("📍 Loading pincode routes...");
+  const pincodeRoutes = require('./routes/pincode');
+  app.use('/api/pincode', pincodeRoutes);
+  console.log("✅ Pincode routes loaded");
+} catch (error) {
+  console.error("❌ Error loading pincode routes:", error.message);
+}
+
+try {
   console.log("📋 Loading review routes...");
   const reviewRoutes = require('./routes/reviews');
   app.use('/api/reviews', reviewRoutes);
@@ -181,7 +190,7 @@ app.use((req, res) => {
   res.status(404).json({ 
     success: false, 
     message: `Route ${req.method} ${req.path} not found`,
-    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders','/api/reviews', '/api/users', '/api/cart', '/api/wishlist', '/api/contact', '/api/address','/api/delivery', '/api/categories', '/api/wholesale']
+    availableRoutes: ['/api/auth', '/api/admin', '/api/products', '/api/orders','/api/reviews', '/api/users', '/api/cart', '/api/wishlist', '/api/contact', '/api/address','/api/delivery', '/api/categories', '/api/wholesale', '/api/pincode']
   });
 });
 
